@@ -1,125 +1,154 @@
+import cv2
 import time
-from enum import Enum, auto
-
+import numpy as np
 from aruco_tag_detector import ArucoTagDetector
 from feed_relay import FeedRelay
-
-
-class StationState(Enum):
-    WAITING = auto()
-    SCANNING = auto()
-    COMPLETE = auto()
+from item import Item, ItemHandler
 
 
 class Station:
-    COMPLETE_HOLD_SECONDS = 2.0
+    READY = "ready"
+    SCANNING = "scanning"
 
-    def __init__(self, x, y, w, h, feed_relay: FeedRelay, scan_time: float):
-        self.x = int(x)
-        self.y = int(y)
-        self.w = int(w)
-        self.h = int(h)
+    GRACE_FRAMES = 10
 
-        self.feed_relay = feed_relay
+
+    #add an optional param covered_tag which defaults to none, it will also require that covered_tag is set to none or not found in order to scan
+    def __init__(
+        self,
+        x, y, w, h,
+        feed_relay,
+        scan_time,
+        type,
+        item_handler,
+        show_window: bool = False,
+    ):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.type = type
+        self.feed_relay: FeedRelay = feed_relay
+        self.item_handler: ItemHandler = item_handler
         self.tag_det = ArucoTagDetector()
         self.scan_time = float(scan_time)
 
-        self.state: StationState = StationState.WAITING
-        self.next_event_t: float | None = None  # absolute monotonic time
+        self.show_window = show_window
+        self.window_name = f"Station {type}"
 
-    # -------- core loop --------
+        # State machine
+        self.state = self.READY
+        self.scan_start_time: float | None = None
 
-    def tick(self) -> StationState:
+        # Target tracking
+        self.target_tag: int | None = None
+        self.miss_count = 0
+
+        if self.show_window:
+            cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
+
+    def _draw_detection_overlay(self, frame_bgr, corners, ids_list, target_tag=None):
+        """Draw detected markers + IDs; highlight target tag if present."""
+        out = frame_bgr.copy()
+        if ids_list:
+            ids_np = np.array(ids_list, dtype=np.int32).reshape(-1, 1)
+            cv2.aruco.drawDetectedMarkers(out, corners, ids_np)
+
+        if target_tag is not None:
+            cv2.putText(
+                out,
+                f"TARGET: {target_tag}",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.9,
+                (255, 255, 255),
+                2,
+                cv2.LINE_AA,
+            )
+        return out
+
+    def _compute_valid_tags(self, ids: list[int]) -> list[int]:
         """
-        Call once per tick AFTER feed_relay.update_image().
+        A tag is 'valid' for this station if its corresponding item exists (create if needed)
+        and the item.state == this station's type.
         """
-        now = time.monotonic()
+        valid = []
+        for tag in ids:
+            if not self.item_handler.has_item(tag):
+                self.item_handler.create_item(tag)
 
-        if self.state == StationState.WAITING:
-            return self._tick_waiting(now)
+            item: Item = self.item_handler.get_item(tag)
+            if item.state == self.type:
+                valid.append(tag)
+        return valid
 
-        if self.state == StationState.SCANNING:
-            return self._tick_scanning(now)
+    def get_status(self):
+        now = time.time()
 
-        if self.state == StationState.COMPLETE:
-            return self._tick_complete(now)
+        sub_sec = self.feed_relay.get_sub_section(self.x, self.y, self.w, self.h)
 
-        # safety fallback
-        self.set_state(StationState.WAITING)
-        return self.state
+        # Single detection pass
+        corners, ids = self.tag_det.detect(sub_sec)
+        valid_tags = self._compute_valid_tags(ids)
 
-    # -------- state handlers --------
+        # Show annotated window (same detection results)
+        if self.show_window:
+            annotated = self._draw_detection_overlay(sub_sec, corners, ids, self.target_tag)
+            cv2.imshow(self.window_name, annotated)
+            cv2.waitKey(1)
 
-    def _tick_waiting(self, now: float) -> StationState:
-        if self._tag_present():
-            # schedule scan completion
-            self.set_state(StationState.SCANNING, next_event_t=now + self.scan_time)
-        return self.state
+        # ---------------- State machine ----------------
 
-    def _tick_scanning(self, now: float) -> StationState:
-        if not self._tag_present():
-            # continuous requirement violated -> reset
-            self.set_state(StationState.WAITING, next_event_t=None)
-            return self.state
+        # READY: acquire a target if any valid tag is present
+        if self.state == self.READY:
+            if valid_tags:
+                # Choose a deterministic target (first in list, or you can use min(valid_tags))
+                self.target_tag = valid_tags[0]
+                self.state = self.SCANNING
+                self.scan_start_time = now
+                self.miss_count = 0
+                return {"state": self.SCANNING, "progress": 0.0, "target": self.target_tag}
 
-        if self.next_event_t is None:
-            # inconsistent state; recover by restarting scan window
-            self.set_state(StationState.SCANNING, next_event_t=now + self.scan_time)
-            return self.state
+            self.target_tag = None
+            return {"state": self.READY, "progress": None, "target": None}
 
-        if now >= self.next_event_t:
-            # schedule end of COMPLETE hold
-            self.set_state(StationState.COMPLETE, next_event_t=now + self.COMPLETE_HOLD_SECONDS)
+        # SCANNING: only track the locked target_tag
+        if self.target_tag is None:
+            # Safety fallback: if somehow scanning without a target, reset.
+            self.state = self.READY
+            self.scan_start_time = None
+            self.miss_count = 0
+            return {"state": self.READY, "progress": None, "target": None}
 
-        return self.state
+        target_present = self.target_tag in valid_tags
 
-    def _tick_complete(self, now: float) -> StationState:
-        if self.next_event_t is None:
-            # inconsistent state; recover by starting hold window
-            self.set_state(StationState.COMPLETE, next_event_t=now + self.COMPLETE_HOLD_SECONDS)
-            return self.state
+        if target_present:
+            self.miss_count = 0
+        else:
+            self.miss_count += 1
+            if self.miss_count > self.GRACE_FRAMES:
+                # Target lost beyond grace -> abandon scan and await new target
+                self.state = self.READY
+                self.scan_start_time = None
+                self.target_tag = None
+                self.miss_count = 0
+                return {"state": self.READY, "progress": None, "target": None}
 
-        if now >= self.next_event_t:
-            self.set_state(StationState.WAITING, next_event_t=None)
+        # Progress based on time since scan started
+        elapsed = 0.0 if self.scan_start_time is None else (now - self.scan_start_time)
+        progress = 1.0 if self.scan_time <= 0 else min(elapsed / self.scan_time, 1.0)
 
-        return self.state
+        # If scan completes AND target is present now, advance and reset to READY
+        if progress >= 1.0 and target_present:
+            self.item_handler.advance_item(self.target_tag)
 
-    # -------- single mutation point --------
+            finished_tag = self.target_tag
+            self.state = self.READY
+            self.scan_start_time = None
+            self.target_tag = None
+            self.miss_count = 0
 
-    def set_state(self, state: StationState, next_event_t: float | None = None) -> None:
-        """
-        The only method that mutates state + timing.
+            # You can return READY immediately, or return SCANNING with 1.0 for one frame.
+            return {"state": self.READY, "progress": None, "target": None, "completed": finished_tag}
 
-        next_event_t is an absolute time.monotonic() timestamp for the next transition,
-        or None if no scheduled transition.
-        """
-        self.state = state
-        self.next_event_t = next_event_t
-
-    # -------- helpers --------
-
-    def _tag_present(self) -> bool:
-        roi = self.feed_relay.get_sub_section(self.x, self.y, self.w, self.h)
-        return self.tag_det.detect_first_id(roi) is not None
-
-    def get_scan_progress(self) -> float:
-        """
-        Optional helper for UI progress bars.
-        - WAITING: 0.0
-        - SCANNING: 0.0..1.0
-        - COMPLETE: 1.0
-        """
-        if self.state == StationState.WAITING:
-            return 0.0
-        if self.state == StationState.COMPLETE:
-            return 1.0
-        if self.state != StationState.SCANNING or self.next_event_t is None:
-            return 0.0
-
-        now = time.monotonic()
-        scan_start = self.next_event_t - self.scan_time
-        if now <= scan_start:
-            return 0.0
-        if now >= self.next_event_t:
-            return 1.0
-        return (now - scan_start) / self.scan_time
+        return {"state": self.SCANNING, "progress": progress, "target": self.target_tag}
