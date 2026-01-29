@@ -78,7 +78,7 @@ except AttributeError:
 # =========================
 print("[INFO] Opening camera...")
 
-CAMERA_INDEX = 6  # change to 6 if needed
+CAMERA_INDEX = 6 # change to 6 if needed
 
 cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
 cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
