@@ -1,0 +1,8 @@
+prefix=/home/peter/Fetch/personal_ws/install
+
+Name: test_pkg
+Description: Description of test_pkg
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: geometry_msgs rospy std_msgs sensor_msgs cv_bridge

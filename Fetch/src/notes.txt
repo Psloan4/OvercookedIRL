@@ -1,0 +1,5 @@
+look into snap algorithm
+
+Fetch
+- ssh fetch@qiborg (logs into fetch)
+- password on google doc

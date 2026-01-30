@@ -1,0 +1,15 @@
+<launch>
+  <!-- Keyboard teleop for Fetch base -->
+      <node pkg="test_pkg"
+            type="fetch_movement.py"
+            name="fetch_movement"
+            output="screen" />
+      <node pkg="test_pkg"
+            type="camera_viewer.py"
+            name="camer_viewer"
+            output="screen" />
+      <!-- <node pkg="test_pkg"
+            type="arm_control.py"
+            name="arm_control"
+            output="screen" /> -->
+</launch>

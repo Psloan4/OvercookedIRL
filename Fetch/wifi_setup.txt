@@ -1,0 +1,20 @@
+Fetch setup instructions:
+1. Plug in ethernet
+2. run ssh fetch@qiborg
+3. run source wifi_ap_setup.sh
+
+Desktop setup instructions:
+1. connect to hotspot (password: fetch1234)
+2. run source wifi_fetch_setup.sh
+
+SSH to wifi:
+ssh fetch@10.42.0.1
+
+Publishing compressed image:
+rosrun image_transport republish raw in:=/head_camera/rgb/image_raw compressed out:=/head_camera/rgb/image_raw
+
+start gmapping:
+rosrun gmapping slam_gmapping scan:=/base_scan _tf_delay:=0.1
+
+start move_base:
+roslaunch fetch_navigation fetch_nav.launch

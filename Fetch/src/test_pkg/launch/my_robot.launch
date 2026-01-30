@@ -1,0 +1,7 @@
+<launch>
+    <!-- Simple example: run your Python node -->
+    <node pkg="test_pkg"
+          type="test_traj_move.py"
+          name="test_node"
+          output="screen" />
+</launch>

@@ -1,0 +1,27 @@
+<launch>
+  <!-- ============ Topics / frames ============ -->
+  <!-- Fetch nav defaults -->
+  <arg name="scan_topic"    default="base_scan" />
+  <arg name="map_topic"     default="map" />
+  <arg name="cmd_vel_topic" default="cmd_vel" />
+  <arg name="odom_topic"    default="odom" />
+
+  <!-- If you want to pass this through without editing later -->
+  <arg name="tf_delay" default="0.1" />
+
+  <!-- ============ Navigation (move_base) ============ -->
+  <!-- This is the same move_base include Fetch uses, without AMCL/map_server -->
+  <include file="$(find fetch_navigation)/launch/include/move_base.launch.xml">
+    <arg name="name" value="fetch" />
+    <arg name="map_topic" value="$(arg map_topic)" />
+    <arg name="cmd_vel_topic" value="$(arg cmd_vel_topic)" />
+    <arg name="odom_topic" value="$(arg odom_topic)" />
+  </include>
+
+  <!-- Optional: tilt head (nice for sensing, not required for nav) -->
+  <!-- <node pkg="fetch_navigation" type="tilt_head.py" name="tilt_head_node" /> -->
+
+  <!-- ============ Your explorer node ============ -->
+  <node pkg="fetch_exp" type="explore.py" name="frontier_explorer" output="screen" />
+
+</launch>
