@@ -233,6 +233,7 @@ class OvercookedIRL:
 
         self.station_badges = []
         self.station_progress_bars = []
+        self.station_tag_labels = []   # <-- NEW: tag label per station card
 
         for station in self.stations:
             card = QWidget()
@@ -258,6 +259,11 @@ class OvercookedIRL:
             top_row.addStretch(1)
             top_row.addWidget(badge)
 
+            # NEW: Tag display (what the station sees/selected this frame)
+            tag_label = QLabel("TAG: —")
+            tag_label.setObjectName("HudLabel")
+            tag_label.setStyleSheet("font-size: 16px; font-weight: 900;")
+
             bar = QProgressBar()
             bar.setRange(0, 100)
             bar.setValue(0)
@@ -266,11 +272,13 @@ class OvercookedIRL:
             bar.hide()
 
             card_layout.addLayout(top_row)
+            card_layout.addWidget(tag_label)  # <-- NEW
             card_layout.addWidget(bar)
             card_layout.addStretch(1)  # helps fill tall cards nicely
 
             self.station_badges.append(badge)
             self.station_progress_bars.append(bar)
+            self.station_tag_labels.append(tag_label)  # <-- NEW
 
             # Place based on station.type
             if station.type == "1":
@@ -335,13 +343,18 @@ class OvercookedIRL:
         self._update_time_label()
 
         # reset station UI
-        for badge, bar in zip(self.station_badges, self.station_progress_bars):
+        for badge, bar, tag_label in zip(
+            self.station_badges, self.station_progress_bars, self.station_tag_labels
+        ):
             badge.setText("READY")
             badge.setObjectName("BadgeReady")
             badge.style().unpolish(badge)
             badge.style().polish(badge)
+
             bar.hide()
             bar.setValue(0)
+
+            tag_label.setText("TAG: —")
 
         self.stack.setCurrentWidget(self.game_page)
         self.timer.start(16)
@@ -381,9 +394,17 @@ class OvercookedIRL:
             status = station.get_status()
             state = status.get("state", "unknown")
             progress = status.get("progress", None)
+            target = status.get("target", None)
 
             badge = self.station_badges[i]
             bar = self.station_progress_bars[i]
+            tag_label = self.station_tag_labels[i]
+
+            # NEW: always show the currently selected/seen tag
+            if target and self.item_handler.has_item(target):
+                tag_label.setText(f"Item detected: stage {self.item_handler.get_item(target).state}")
+            else:
+                tag_label.setText("")
 
             if state == Station.SCANNING:
                 badge.setText("SCANNING")
