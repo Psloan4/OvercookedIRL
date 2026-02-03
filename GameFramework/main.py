@@ -35,6 +35,7 @@ class OvercookedIRLApp:
                     d["type"],
                     self.item_handler,
                     d["show_window"],
+                    d["covered"],
                 )
             )
 

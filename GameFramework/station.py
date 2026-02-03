@@ -20,6 +20,7 @@ class Station:
         type,
         item_handler,
         show_window: bool = False,
+        covered = None
     ):
         self.x = x
         self.y = y
@@ -33,6 +34,8 @@ class Station:
 
         self.show_window = show_window
         self.window_name = f"Station {type}"
+
+        self.covered = covered
 
         # State machine
         self.state = self.READY
@@ -93,6 +96,8 @@ class Station:
     def _compute_valid_tags(self, ids: list[int]) -> list[int]:
         valid = []
         for tag in ids:
+            if self.covered == tag: continue
+
             if not self.item_handler.has_item(tag):
                 self.item_handler.create_item(tag)
 
@@ -110,7 +115,7 @@ class Station:
         if not ids:
             return None
 
-        new_ids = [t for t in ids if t not in self.last_seen_ids]
+        new_ids = [t for t in ids if t not in self.last_seen_ids and t != self.covered]
         if not new_ids:
             return None
 
@@ -133,7 +138,7 @@ class Station:
         if newly_selected is not None:
             self.target_tag = newly_selected
             self.miss_count = 0
-            self.scan_start_time = now  # restart timing whenever a new tag is selected
+            self.scan_start_time = None  # restart timing whenever a new tag is selected
 
         # Update last seen set AFTER selection logic
         self.last_seen_ids = set(ids)
@@ -176,21 +181,39 @@ class Station:
                 return {"state": self.READY, "progress": None, "target": None}
 
         # Determine validity of currently selected target
-        target_valid = self.target_tag in valid_tags
+        tag_covered = self.covered is None or self.covered not in ids
+        target_valid = self.target_tag in valid_tags and tag_covered
 
         # Only SCAN valid targets
         if not target_valid:
             self.state = self.READY
+            self.scan_start_time == None
             # We still return the selected tag even though we aren't scanning it
             return {"state": self.READY, "progress": None, "target": self.target_tag}
 
         # Valid target: scanning state and progress
         self.state = self.SCANNING
+        if self.scan_start_time is None:
+            self.scan_start_time = now
+            print(
+                f"[SCAN START] Station={self.type} "
+                f"Tag={self.target_tag} "
+                f"t={self.scan_start_time:.3f} "
+                f"scan_time={self.scan_time}"
+            )
 
-        elapsed = 0.0 if self.scan_start_time is None else (now - self.scan_start_time)
+        elapsed = now - self.scan_start_time
         progress = 1.0 if self.scan_time <= 0 else min(elapsed / self.scan_time, 1.0)
 
         if progress >= 1.0 and target_present:
+            print(
+                f"[SCAN FINISH] Station={self.type} "
+                f"Tag={self.target_tag} "
+                f"start={self.scan_start_time:.3f} "
+                f"end={now:.3f} "
+                f"elapsed={now - self.scan_start_time:.3f}"
+            )
+
             self.item_handler.advance_item(self.target_tag)
 
             finished_tag = self.target_tag
