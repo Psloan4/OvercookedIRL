@@ -40,12 +40,41 @@ class ArucoTagDetector:
         except AttributeError:
             self.aruco_dict = cv2.aruco.Dictionary_get(self.ARUCO_DICT[tag_type])
 
-        # Parameters + detector (supports old & new OpenCV)
-        self.detector = None
+        # Parameters (supports old & new OpenCV)
         try:
             self.aruco_params = cv2.aruco.DetectorParameters_create()
         except AttributeError:
             self.aruco_params = cv2.aruco.DetectorParameters()
+
+        # --------------------------------------------------
+        # LOWER EFFECTIVE "CONFIDENCE" (higher recall)
+        # --------------------------------------------------
+
+        # Allow smaller / farther tags
+        self.aruco_params.minMarkerPerimeterRate = 0.003
+        self.aruco_params.maxMarkerPerimeterRate = 8.0
+
+        # Accept more distorted squares
+        self.aruco_params.polygonalApproxAccuracyRate = 0.08
+
+        # Allow more bit errors during decoding (main confidence-like knob)
+        self.aruco_params.errorCorrectionRate = 0.9
+
+        # Corner refinement often rejects marginal detections
+        self.aruco_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_NONE
+
+        # More aggressive adaptive thresholding
+        self.aruco_params.adaptiveThreshWinSizeMin = 3
+        self.aruco_params.adaptiveThreshWinSizeMax = 11
+        self.aruco_params.adaptiveThreshWinSizeStep = 4
+        self.aruco_params.adaptiveThreshConstant = 5
+
+
+        # --------------------------------------------------
+
+        # Detector (new OpenCV). For old OpenCV we will call cv2.aruco.detectMarkers directly.
+        self.detector = None
+        if hasattr(cv2.aruco, "ArucoDetector"):
             self.detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params)
 
     def _resize_keep_aspect(self, image: np.ndarray, width: int) -> np.ndarray:

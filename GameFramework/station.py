@@ -10,6 +10,7 @@ class Station:
     READY = "ready"
     SCANNING = "scanning"
 
+    # How many consecutive "missed" frames before we drop the target
     GRACE_FRAMES = 20
 
     def __init__(
@@ -20,7 +21,7 @@ class Station:
         type,
         item_handler,
         show_window: bool = False,
-        covered = None
+        covered=None
     ):
         self.x = x
         self.y = y
@@ -39,13 +40,17 @@ class Station:
 
         # State machine
         self.state = self.READY
-        self.scan_start_time: float | None = None
 
         # Target tracking
         self.target_tag: int | None = None
         self.miss_count = 0
 
-        # NEW: track what we saw last frame (to detect "new" tags)
+        # Scan timing: accumulate "seen time" so flicker doesn't reset scanning
+        self.scan_start_time: float | None = None   # when we entered SCANNING
+        self.scan_accum: float = 0.0                # seconds of confirmed visibility
+        self.last_tick_time: float | None = None    # to compute dt between ticks
+
+        # Optional debug bookkeeping
         self.last_seen_ids: set[int] = set()
 
         if self.show_window:
@@ -70,7 +75,7 @@ class Station:
 
         cv2.putText(
             out,
-            f"Station: {self.type}  State: {self.state}",
+            f"Station: {self.type}  State: {self.state}  miss={self.miss_count}",
             (10, 25),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
@@ -93,35 +98,56 @@ class Station:
 
         return out
 
+    def _full_reset(self):
+        self.state = self.READY
+        self.target_tag = None
+        self.miss_count = 0
+        self.scan_start_time = None
+        self.scan_accum = 0.0
+        self.last_tick_time = None
+        self.last_seen_ids.clear()
+
+    def _ensure_item(self, tag: int) -> Item:
+        if not self.item_handler.has_item(tag):
+            self.item_handler.create_item(tag)
+        return self.item_handler.get_item(tag)
+
     def _compute_valid_tags(self, ids: list[int]) -> list[int]:
+        """
+        Valid tags among the *currently detected* ids.
+        (Still useful for choosing the next target.)
+        """
         valid = []
         for tag in ids:
-            if self.covered == tag: continue
+            if self.covered == tag:
+                continue
 
-            if not self.item_handler.has_item(tag):
-                self.item_handler.create_item(tag)
-
-            item: Item = self.item_handler.get_item(tag)
+            item = self._ensure_item(tag)
             if item.state == self.type:
                 valid.append(tag)
         return valid
 
-    def _select_new_tag(self, ids: list[int], valid_tags: list[int]) -> int | None:
+    def _target_should_scan(self, ids: list[int]) -> bool:
         """
-        Select a tag ONLY when a new tag appears compared to last frame.
-        - Prefer a newly-appeared valid tag
-        - Else choose the first newly-appeared tag
+        Whether the CURRENT target is eligible to be scanned based on game logic.
+        IMPORTANT: This must NOT depend on whether the tag was detected this frame,
+        otherwise flicker will interrupt scanning.
         """
-        if not ids:
-            return None
+        if self.target_tag is None:
+            return False
 
-        new_ids = [t for t in ids if t not in self.last_seen_ids and t != self.covered]
-        if not new_ids:
-            return None
+        # Covered logic: if "covered" tag is visible, block scanning
+        tag_covered_ok = (self.covered is None) or (self.covered not in ids)
+        if not tag_covered_ok:
+            return False
 
-        # Prefer newly-appeared valid
-        new_valid = [t for t in new_ids if t in valid_tags]
-        return new_valid[0] if new_valid else new_ids[0]
+        item = self._ensure_item(self.target_tag)
+        return item.state == self.type
+
+    def _reset_scan_timer(self):
+        self.scan_start_time = None
+        self.scan_accum = 0.0
+        self.last_tick_time = None
 
     def _tick(self):
         now = time.time()
@@ -132,15 +158,6 @@ class Station:
         # Detection pass on ROI
         corners, ids = self.tag_det.detect(sub_sec)  # ids: list[int]
         valid_tags = self._compute_valid_tags(ids)
-
-        # Decide if there's a "new" tag this frame -> select it
-        newly_selected = self._select_new_tag(ids, valid_tags)
-        if newly_selected is not None:
-            self.target_tag = newly_selected
-            self.miss_count = 0
-            self.scan_start_time = None  # restart timing whenever a new tag is selected
-
-        # Update last seen set AFTER selection logic
         self.last_seen_ids = set(ids)
 
         # Show annotated window
@@ -158,43 +175,64 @@ class Station:
             cv2.imshow(self.window_name, annotated)
             cv2.waitKey(1)
 
-        # If no target selected yet, we're just ready
-        if self.target_tag is None:
-            self.state = self.READY
-            self.scan_start_time = None
-            self.miss_count = 0
-            return {"state": self.READY, "progress": None, "target": None}
+        # -----------------------------
+        # TARGET SELECTION POLICY
+        # -----------------------------
 
-        # Target presence uses raw detections (validity doesn't matter for selection/reporting)
-        target_present = self.target_tag in ids
+        # If we have no target, choose one from what's currently seen
+        if self.target_tag is None:
+            candidates = [t for t in ids if t != self.covered]
+            if not candidates:
+                self.state = self.READY
+                self.miss_count = 0
+                self._reset_scan_timer()
+                return {"state": self.READY, "progress": None, "target": None}
+
+            # Prefer a valid tag if present; else any seen tag
+            preferred = [t for t in candidates if t in valid_tags]
+            self.target_tag = preferred[0] if preferred else candidates[0]
+            self.miss_count = 0
+            self._reset_scan_timer()
+
+        # We have a target: prioritize it and count misses
+        target_present = (self.target_tag in ids)
 
         if target_present:
             self.miss_count = 0
         else:
             self.miss_count += 1
             if self.miss_count > self.GRACE_FRAMES:
-                # drop target after grace timeout
-                self.state = self.READY
-                self.scan_start_time = None
+                # Drop target after grace timeout and immediately try to pick a new one this frame
                 self.target_tag = None
                 self.miss_count = 0
-                return {"state": self.READY, "progress": None, "target": None}
+                self._reset_scan_timer()
 
-        # Determine validity of currently selected target
-        tag_covered = self.covered is None or self.covered not in ids
-        target_valid = self.target_tag in valid_tags and tag_covered
+                candidates = [t for t in ids if t != self.covered]
+                if not candidates:
+                    self.state = self.READY
+                    return {"state": self.READY, "progress": None, "target": None}
 
-        # Only SCAN valid targets
-        if not target_valid:
+                preferred = [t for t in candidates if t in valid_tags]
+                self.target_tag = preferred[0] if preferred else candidates[0]
+                self.state = self.READY
+                return {"state": self.READY, "progress": None, "target": self.target_tag}
+
+        # -----------------------------
+        # SCANNING LOGIC (flicker-safe)
+        # -----------------------------
+
+        # If game logic says we shouldn't scan this target, stay READY but keep the target (grace still applies)
+        if not self._target_should_scan(ids):
             self.state = self.READY
-            self.scan_start_time == None
-            # We still return the selected tag even though we aren't scanning it
+            self._reset_scan_timer()
             return {"state": self.READY, "progress": None, "target": self.target_tag}
 
-        # Valid target: scanning state and progress
+        # Valid target: scanning. Do NOT reset scan timer on brief misses.
         self.state = self.SCANNING
         if self.scan_start_time is None:
             self.scan_start_time = now
+            self.scan_accum = 0.0
+            self.last_tick_time = now
             print(
                 f"[SCAN START] Station={self.type} "
                 f"Tag={self.target_tag} "
@@ -202,25 +240,30 @@ class Station:
                 f"scan_time={self.scan_time}"
             )
 
-        elapsed = now - self.scan_start_time
-        progress = 1.0 if self.scan_time <= 0 else min(elapsed / self.scan_time, 1.0)
+        dt = 0.0 if self.last_tick_time is None else (now - self.last_tick_time)
+        self.last_tick_time = now
 
+        # Accumulate scan time ONLY while the tag is actually present
+        #if target_present:
+        self.scan_accum += dt
+
+        progress = 1.0 if self.scan_time <= 0 else min(self.scan_accum / self.scan_time, 1.0)
+
+        # Only finish if we've accumulated enough "seen time" AND it's present right now
         if progress >= 1.0 and target_present:
             print(
                 f"[SCAN FINISH] Station={self.type} "
                 f"Tag={self.target_tag} "
-                f"start={self.scan_start_time:.3f} "
-                f"end={now:.3f} "
-                f"elapsed={now - self.scan_start_time:.3f}"
+                f"seen_time={self.scan_accum:.3f}"
             )
 
             self.item_handler.advance_item(self.target_tag)
 
             finished_tag = self.target_tag
             self.state = self.READY
-            self.scan_start_time = None
-            #self.target_tag = None
+            self.target_tag = None
             self.miss_count = 0
+            self._reset_scan_timer()
 
             return {
                 "state": self.READY,
