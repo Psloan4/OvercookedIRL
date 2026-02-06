@@ -123,7 +123,7 @@ class Station:
         new_valid = [t for t in new_ids if t in valid_tags]
         return new_valid[0] if new_valid else new_ids[0]
 
-    def get_status(self):
+    def _tick(self):
         now = time.time()
 
         # ROI for detection
@@ -146,7 +146,7 @@ class Station:
         # Show annotated window
         if self.show_window:
             if self.feed_relay.frame is None:
-                raise RuntimeError("FeedRelay has no frame. Call feed_relay.update_image() before get_status().")
+                raise RuntimeError("FeedRelay has no frame. Call feed_relay.update_image() before _tick().")
 
             annotated = self._draw_detection_overlay(
                 self.feed_relay.frame,

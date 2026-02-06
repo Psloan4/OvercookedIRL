@@ -72,6 +72,7 @@ class ArucoTagDetector:
             frame = self._resize_keep_aspect(frame, self.resize_width)
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (3, 3), 0)
 
         if self.detector is None:
             corners, ids, _rejected = cv2.aruco.detectMarkers(

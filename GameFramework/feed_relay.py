@@ -1,6 +1,5 @@
 import cv2
 
-
 class FeedRelay:
     def __init__(self, feed_fp):
         self.cap = cv2.VideoCapture(feed_fp)
@@ -52,6 +51,9 @@ class FeedRelay:
             )
 
         return self.frame[y1:y2, x1:x2]
+
+    def get_frame(self):
+        return self.frame
 
     def release(self):
         self.cap.release()

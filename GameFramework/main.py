@@ -1,15 +1,25 @@
+import subprocess
 import sys
+import pygame
+import os
 from PySide6.QtWidgets import QApplication, QStackedWidget
 from PySide6.QtCore import QTimer
 
+from final_station import FinalStation
 from feed_relay import FeedRelay
 from item import ItemHandler
 from station import Station
 
 from style import APP_QSS
-from config import CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, GRID_PLACEMENT
+from config import STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, GRID_PLACEMENT
 from ui_components import StartPage, GamePage, EndPage
 
+
+pygame.mixer.init()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INC_POINTS_SOUND = pygame.mixer.Sound(
+    os.path.join(BASE_DIR, "assets", "inc_points.mp3")
+)
 
 class OvercookedIRLApp:
     def __init__(self):
@@ -21,8 +31,9 @@ class OvercookedIRLApp:
         self.time_left = GAME_SECONDS
 
         # services
-        self.feed_relay = FeedRelay(CAMERA_DEV)
-        self.item_handler = ItemHandler(self.inc_points)
+        self.station_feed_relay = FeedRelay(STATION_CAMERA_DEV)
+        self.final_feed_relay = FeedRelay(FINAL_CAMERA_DEV)
+        self.item_handler = ItemHandler()
 
         # stations (pure logic objects)
         self.stations: list[Station] = []
@@ -30,7 +41,7 @@ class OvercookedIRLApp:
             self.stations.append(
                 Station(
                     d["x"], d["y"], d["w"], d["h"],
-                    self.feed_relay,
+                    self.station_feed_relay,
                     d["scan_time"],
                     d["type"],
                     self.item_handler,
@@ -38,6 +49,7 @@ class OvercookedIRLApp:
                     d["covered"],
                 )
             )
+        self.final_station = FinalStation(self.final_feed_relay, self.item_handler)
 
         # pages
         self.start_page = StartPage(self.start_game)
@@ -64,6 +76,8 @@ class OvercookedIRLApp:
     def inc_points(self, inc: int):
         self.points += inc
         self.game_page.set_points(self.points)
+
+        INC_POINTS_SOUND.play()
 
     # ---- flow ----
     def start_game(self):
@@ -96,11 +110,16 @@ class OvercookedIRLApp:
             self.end_game()
 
     def _tick(self):
-        self.feed_relay.update_image()
+        self.station_feed_relay.update_image()
+        self.final_feed_relay.update_image()
 
         for station in self.stations:
-            status = station.get_status()
+            status = station._tick()
             self.game_page.cards_by_type[station.type].update_from_status(status, self.item_handler)
+        
+        fss = self.final_station._tick()
+        if fss["state"] == self.final_station.COMPLETE:
+            self.inc_points(10)
 
     def run(self):
         self.stack.setMinimumSize(520, 420)

@@ -1,7 +1,4 @@
-
-
 import random
-
 
 class Item:
 
@@ -18,21 +15,24 @@ class Item:
 
 class ItemHandler:
 
-    def __init__(self, point_inc_func):
+    def __init__(self):
         self.items = {}
-        self.point_inc_func = point_inc_func
 
-    def has_item(self, tag_id):
+    def has_item(self, tag_id) -> bool:
         return tag_id in self.items
     
-    def get_item(self, tag_id):
+    def get_item(self, tag_id) -> Item:
         return self.items[tag_id]
 
     def create_item(self, tag_id):
+        if self.has_item(tag_id): return
         self.items[tag_id] = Item()
     
+    def remove_item(self, tag_id):
+        if not self.has_item(tag_id): return
+        del self.items[tag_id]
+
     def advance_item(self, tag_id):
-        item = self.items[tag_id]
-        item.advance_state()
-        if item.state == "complete":
-            self.point_inc_func(10)
+        if self.has_item(tag_id):
+            item = self.get_item(tag_id)
+            item.advance_state()
