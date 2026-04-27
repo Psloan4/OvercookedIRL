@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3 uid="uid://i2108im0hcpx"]
+
+[ext_resource type="Script" path="res://spawner.gd" id="1_dth8d"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_kg0ap"]
+size = Vector2(60, 60)
+
+[node name="Spawner" type="Node2D"]
+script = ExtResource("1_dth8d")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_left = -30.0
+offset_top = -30.0
+offset_right = 30.0
+offset_bottom = 30.0
+color = Color(0.509286, 0.509286, 0.509286, 1)
+metadata/_edit_use_anchors_ = true
+
+[node name="Area2D" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("RectangleShape2D_kg0ap")
+
+[connection signal="body_exited" from="Area2D" to="." method="_on_area_2d_body_exited"]

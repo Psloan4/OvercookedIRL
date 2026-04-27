@@ -1,0 +1,225 @@
+[gd_scene load_steps=11 format=3 uid="uid://3x1ddkxsadt1"]
+
+[ext_resource type="PackedScene" uid="uid://1uap7k3aigsy" path="res://player.tscn" id="1_t41yw"]
+[ext_resource type="PackedScene" uid="uid://i2108im0hcpx" path="res://spawner.tscn" id="3_46vjg"]
+[ext_resource type="PackedScene" uid="uid://66hq50edksce" path="res://drop_off.tscn" id="4_dw4m3"]
+[ext_resource type="Script" path="res://stats.gd" id="4_hq4q6"]
+[ext_resource type="PackedScene" uid="uid://badt067otcc3r" path="res://station.tscn" id="4_n6us3"]
+[ext_resource type="Script" path="res://data_saver.gd" id="6_x4bx7"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_g1cbu"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_6d3w4"]
+size = Vector2(76, 648)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1wmcd"]
+size = Vector2(1000, 74)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ipswn"]
+size = Vector2(300, 150)
+
+[node name="Map" type="Node2D"]
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_right = 1152.0
+offset_bottom = 648.0
+color = Color(1.92523e-07, 0.253839, 0.298495, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="ColorRect"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" type="ColorRect" parent="ColorRect/CenterContainer"]
+custom_minimum_size = Vector2(1000, 500)
+layout_mode = 2
+color = Color(0.67557, 0.752012, 0.789303, 1)
+
+[node name="ColorRect2" type="ColorRect" parent="ColorRect"]
+custom_minimum_size = Vector2(300, 150)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -50.0
+offset_right = 100.0
+offset_bottom = 50.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0219672, 0.0961971, 0.171341, 1)
+
+[node name="Player1" parent="." node_paths=PackedStringArray("stats") instance=ExtResource("1_t41yw")]
+modulate = Color(1, 0.208562, 0.194293, 1)
+position = Vector2(245, 215)
+stats = NodePath("../Stats")
+player_name = "p1"
+
+[node name="Player2" parent="." node_paths=PackedStringArray("stats") instance=ExtResource("1_t41yw")]
+modulate = Color(0.0627451, 0.690196, 0.690196, 1)
+position = Vector2(251, 453)
+stats = NodePath("../Stats")
+player_name = "p2"
+move_speed = 160.0
+turn_speed = 2.0
+
+[node name="Border" type="StaticBody2D" parent="."]
+physics_material_override = SubResource("PhysicsMaterial_g1cbu")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Border"]
+position = Vector2(38, 324)
+shape = SubResource("RectangleShape2D_6d3w4")
+
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="Border"]
+position = Vector2(1114, 324)
+shape = SubResource("RectangleShape2D_6d3w4")
+
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="Border"]
+position = Vector2(576, 37)
+shape = SubResource("RectangleShape2D_1wmcd")
+
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="Border"]
+position = Vector2(576, 611)
+shape = SubResource("RectangleShape2D_1wmcd")
+
+[node name="Table" type="StaticBody2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Table"]
+position = Vector2(576, 324)
+shape = SubResource("RectangleShape2D_ipswn")
+
+[node name="Spawner" parent="." instance=ExtResource("3_46vjg")]
+position = Vector2(46, 322)
+
+[node name="Station1" parent="." instance=ExtResource("4_n6us3")]
+position = Vector2(456, 326)
+id = 1
+time = 6.0
+
+[node name="Station2a" parent="." instance=ExtResource("4_n6us3")]
+position = Vector2(578, 279)
+id = 2
+type = "a"
+automatic = false
+time = 5.0
+
+[node name="Station2b" parent="." instance=ExtResource("4_n6us3")]
+position = Vector2(579, 369)
+id = 2
+type = "b"
+automatic = false
+time = 5.0
+
+[node name="Station3" parent="." instance=ExtResource("4_n6us3")]
+position = Vector2(696, 325)
+id = 3
+
+[node name="DropOff" parent="." instance=ExtResource("4_dw4m3")]
+position = Vector2(1106, 325)
+
+[node name="Items" type="Node2D" parent="."]
+
+[node name="Stats" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 1152.0
+offset_bottom = 647.0
+script = ExtResource("4_hq4q6")
+
+[node name="ScoreBoard" type="Label" parent="Stats"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 41.0
+grow_horizontal = 2
+text = "Score: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TimeLabel" type="Label" parent="Stats"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 1.0
+offset_top = 32.0
+offset_right = 1.0
+offset_bottom = 73.0
+grow_horizontal = 2
+text = "03:00"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="EndPanel" type="Panel" parent="Stats"]
+visible = false
+custom_minimum_size = Vector2(700, 400)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="GameOverLabel" type="Label" parent="Stats/EndPanel"]
+layout_mode = 1
+anchors_preset = 14
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_top = -160.0
+offset_bottom = 45.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 100
+text = "GAME OVER"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="FinalScoreLabel" type="Label" parent="Stats/EndPanel"]
+layout_mode = 1
+anchors_preset = 14
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_top = -50.0
+offset_bottom = 155.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 60
+text = "Final Score: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="StartButton" type="Button" parent="Stats"]
+custom_minimum_size = Vector2(600, 200)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -100.0
+offset_right = 300.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 100
+text = "START"
+
+[node name="Timer" type="Timer" parent="Stats"]
+wait_time = 180.0
+one_shot = true
+
+[node name="DataSaver" type="Node" parent="."]
+script = ExtResource("6_x4bx7")

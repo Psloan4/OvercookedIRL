@@ -1,0 +1,55 @@
+[gd_scene load_steps=6 format=3 uid="uid://1uap7k3aigsy"]
+
+[ext_resource type="Texture2D" uid="uid://cavwtue28rvvo" path="res://icon.svg" id="1_d4ekx"]
+[ext_resource type="Script" path="res://player.gd" id="1_dg110"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ftuhe"]
+size = Vector2(60, 60)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_tmjps"]
+radius = 52.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_j4r2d"]
+radius = 52.0096
+
+[node name="Player" type="CharacterBody2D"]
+script = ExtResource("1_dg110")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("1_d4ekx")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_ftuhe")
+
+[node name="ItemScan" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ItemScan"]
+position = Vector2(0, -39)
+shape = SubResource("CircleShape2D_tmjps")
+debug_color = Color(0.697304, 0.492742, 0.0778989, 0.42)
+
+[node name="StationScan" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StationScan"]
+position = Vector2(0, -39)
+shape = SubResource("CircleShape2D_tmjps")
+debug_color = Color(0.987821, 0, 0.308852, 0.42)
+
+[node name="DropOffScan" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DropOffScan"]
+position = Vector2(0, -39)
+shape = SubResource("CircleShape2D_j4r2d")
+debug_color = Color(0.769611, 0.157727, 1, 0.42)
+
+[connection signal="body_entered" from="ItemScan" to="." method="_on_item_scan_body_entered"]
+[connection signal="body_exited" from="ItemScan" to="." method="_on_item_scan_body_exited"]
+[connection signal="body_entered" from="StationScan" to="." method="_on_station_scan_body_entered"]
+[connection signal="body_exited" from="StationScan" to="." method="_on_station_scan_body_exited"]
