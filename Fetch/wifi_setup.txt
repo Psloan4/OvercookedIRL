@@ -6,9 +6,11 @@ Fetch setup instructions:
 Desktop setup instructions:
 1. connect to hotspot (password: fetch1234)
 2. run source wifi_fetch_setup.sh
+3. youre now connected to fetchs ros network and can run nodes on your machine connected to fetch
 
 SSH to wifi:
-ssh fetch@10.42.0.1
+1. ssh fetch@10.42.0.1
+2. this remotely logs you on to fetchs software
 
 Publishing compressed image:
 rosrun image_transport republish raw in:=/head_camera/rgb/image_raw compressed out:=/head_camera/rgb/image_raw
@@ -18,3 +20,10 @@ rosrun gmapping slam_gmapping scan:=/base_scan _tf_delay:=0.1
 
 start move_base:
 roslaunch fetch_navigation fetch_nav.launch
+
+
+FOR NATE:
+- I figured out why he wasnt driving, theres a rosservice called /base_breaker which controls actuation of the base motors.
+- it has a state flag that can be enabled or disabled, it needs to be set to enabled to work.
+- i reset fetches base (the little I/O switch on the back of fetch), ssh into fetch, and send him this command
+- rosservice call /base_breaker "enable: true"
