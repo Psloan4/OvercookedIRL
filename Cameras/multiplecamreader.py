@@ -2,7 +2,11 @@ import cv2
 import argparse
 import sys
 import math
+import time
+import socket
 import numpy as np
+
+from stream_server import start_server, publish
 
 ARUCO_DICT = {
     "DICT_4X4_50": cv2.aruco.DICT_4X4_50,
@@ -27,6 +31,20 @@ ARUCO_DICT = {
     "DICT_APRILTAG_36h10": cv2.aruco.DICT_APRILTAG_36h10,
     "DICT_APRILTAG_36h11": cv2.aruco.DICT_APRILTAG_36h11,
 }
+
+
+def get_lan_ip():
+    """Best-effort local LAN IP so we can print usable stream URLs."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Doesn't actually send anything; just picks the outbound interface.
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except OSError:
+        ip = "127.0.0.1"
+    finally:
+        s.close()
+    return ip
 
 
 def create_detector(dict_name):
@@ -176,6 +194,17 @@ def main():
         default="DSHOW",
         choices=["DSHOW", "MSMF", "ANY"]
     )
+    ap.add_argument(
+        "--stream",
+        action="store_true",
+        help="Serve each camera + the dashboard as MJPEG over HTTP for other PCs"
+    )
+    ap.add_argument("--port", type=int, default=8080, help="HTTP port for --stream")
+    ap.add_argument(
+        "--headless",
+        action="store_true",
+        help="Don't open a local window (useful when only streaming). Ctrl+C to quit."
+    )
     args = ap.parse_args()
 
     backend_map = {
@@ -198,45 +227,72 @@ def main():
         sys.exit(1)
 
     print("Opened cameras:", list(caps.keys()))
-    print("Press q or ESC to quit.")
 
-    while True:
-        dashboard_frames = []
-
+    if args.stream:
+        start_server(port=args.port, fps=args.fps)
+        ip = get_lan_ip()
+        print(f"Streaming on http://{ip}:{args.port}/  (open in a browser to verify)")
         for cam_index in args.cams:
-            if cam_index not in caps:
-                placeholder = make_placeholder(
-                    args.tile_width, args.tile_height, f"Camera {cam_index} unavailable"
-                )
-                dashboard_frames.append(placeholder)
-                continue
+            print(f"  camera {cam_index}: http://{ip}:{args.port}/cam/{cam_index}")
+        print(f"  dashboard: http://{ip}:{args.port}/dashboard")
 
-            cap = caps[cam_index]
-            ok, frame = cap.read()
+    if args.headless:
+        print("Running headless. Press Ctrl+C to quit.")
+    else:
+        print("Press q or ESC to quit.")
 
-            if not ok or frame is None:
-                placeholder = make_placeholder(
-                    args.tile_width, args.tile_height, f"Camera {cam_index} no frame"
-                )
-                dashboard_frames.append(placeholder)
-                continue
+    try:
+        while True:
+            dashboard_frames = []
 
-            display, ids = detect_markers(frame, aruco_dict, params, detector, use_new_api)
-            display = annotate_frame(display, cam_index, ids)
-            dashboard_frames.append(display)
+            for cam_index in args.cams:
+                if cam_index not in caps:
+                    placeholder = make_placeholder(
+                        args.tile_width, args.tile_height, f"Camera {cam_index} unavailable"
+                    )
+                    dashboard_frames.append(placeholder)
+                    if args.stream:
+                        publish(f"cam/{cam_index}", placeholder)
+                    continue
 
-        dashboard = build_dashboard(
-            dashboard_frames,
-            tile_w=args.tile_width,
-            tile_h=args.tile_height,
-            cols=2
-        )
+                cap = caps[cam_index]
+                ok, frame = cap.read()
 
-        cv2.imshow("Multi-Camera ArUco Dashboard", dashboard)
+                if not ok or frame is None:
+                    placeholder = make_placeholder(
+                        args.tile_width, args.tile_height, f"Camera {cam_index} no frame"
+                    )
+                    dashboard_frames.append(placeholder)
+                    if args.stream:
+                        publish(f"cam/{cam_index}", placeholder)
+                    continue
 
-        key = cv2.waitKey(1) & 0xFF
-        if key in [ord("q"), 27]:
-            break
+                display, ids = detect_markers(frame, aruco_dict, params, detector, use_new_api)
+                display = annotate_frame(display, cam_index, ids)
+                dashboard_frames.append(display)
+                if args.stream:
+                    publish(f"cam/{cam_index}", display)
+
+            dashboard = build_dashboard(
+                dashboard_frames,
+                tile_w=args.tile_width,
+                tile_h=args.tile_height,
+                cols=2
+            )
+
+            if args.stream:
+                publish("dashboard", dashboard)
+
+            if args.headless:
+                # No GUI; pace the loop so we don't peg a core.
+                time.sleep(1.0 / max(args.fps, 1))
+            else:
+                cv2.imshow("Multi-Camera ArUco Dashboard", dashboard)
+                key = cv2.waitKey(1) & 0xFF
+                if key in [ord("q"), 27]:
+                    break
+    except KeyboardInterrupt:
+        print("\nShutting down.")
 
     for cap in caps.values():
         cap.release()
