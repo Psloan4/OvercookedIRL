@@ -77,6 +77,9 @@ def open_camera(index, width, height, fps, backend):
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
     cap.set(cv2.CAP_PROP_FPS, fps)
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
+    cap.set(cv2.CAP_PROP_EXPOSURE, -6) #can play with this setting
+
 
     return cap
 
