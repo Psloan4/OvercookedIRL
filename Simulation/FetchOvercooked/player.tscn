@@ -1,53 +1,72 @@
-[gd_scene load_steps=6 format=3 uid="uid://1uap7k3aigsy"]
+[gd_scene format=3 uid="uid://1uap7k3aigsy"]
 
 [ext_resource type="Texture2D" uid="uid://cavwtue28rvvo" path="res://icon.svg" id="1_d4ekx"]
-[ext_resource type="Script" path="res://player.gd" id="1_dg110"]
+[ext_resource type="Script" uid="uid://dp5u1bpjupret" path="res://player.gd" id="1_dg110"]
+[ext_resource type="Texture2D" uid="uid://cstyh3tv4otuq" path="res://lord_crandy_bw.png" id="2_onrkg"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ftuhe"]
 size = Vector2(60, 60)
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_tmjps"]
-radius = 52.0
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_onrkg"]
+radius = 29.63
+height = 80.78
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_j4r2d"]
-radius = 52.0096
+[sub_resource type="CircleShape2D" id="CircleShape2D_onrkg"]
+radius = 51.894123
 
-[node name="Player" type="CharacterBody2D"]
+[node name="Player" type="CharacterBody2D" unique_id=142917634]
 script = ExtResource("1_dg110")
+metadata/_edit_group_ = true
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
+[node name="CrandySprite" type="Sprite2D" parent="." unique_id=375120709]
+position = Vector2(1.7881393e-07, 2.861023e-06)
+scale = Vector2(0.11173184, 0.09287926)
+texture = ExtResource("2_onrkg")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=589999547]
+visible = false
 scale = Vector2(0.5, 0.5)
 texture = ExtResource("1_d4ekx")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1819593247]
 shape = SubResource("RectangleShape2D_ftuhe")
 
-[node name="ItemScan" type="Area2D" parent="."]
+[node name="ItemScan" type="Area2D" parent="." unique_id=1823680414]
 collision_layer = 0
 collision_mask = 2
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ItemScan"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ItemScan" unique_id=1431416306]
 position = Vector2(0, -39)
-shape = SubResource("CircleShape2D_tmjps")
+shape = SubResource("CapsuleShape2D_onrkg")
 debug_color = Color(0.697304, 0.492742, 0.0778989, 0.42)
 
-[node name="StationScan" type="Area2D" parent="."]
+[node name="StationScan" type="Area2D" parent="." unique_id=1814056135]
 collision_layer = 0
 collision_mask = 4
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="StationScan"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StationScan" unique_id=1862576741]
 position = Vector2(0, -39)
-shape = SubResource("CircleShape2D_tmjps")
+shape = SubResource("CapsuleShape2D_onrkg")
 debug_color = Color(0.987821, 0, 0.308852, 0.42)
 
-[node name="DropOffScan" type="Area2D" parent="."]
+[node name="DropOffScan" type="Area2D" parent="." unique_id=1863718267]
 collision_layer = 0
 collision_mask = 8
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="DropOffScan"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DropOffScan" unique_id=1823311270]
 position = Vector2(0, -39)
-shape = SubResource("CircleShape2D_j4r2d")
+shape = SubResource("CapsuleShape2D_onrkg")
 debug_color = Color(0.769611, 0.157727, 1, 0.42)
+
+[node name="TableScan" type="Area2D" parent="." unique_id=786656009]
+collision_layer = 0
+collision_mask = 16
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="TableScan" unique_id=1735982138]
+position = Vector2(0, -55)
+scale = Vector2(0.14, 0.14)
+shape = SubResource("CircleShape2D_onrkg")
+debug_color = Color(0, 0.6431373, 0.33333334, 0.4509804)
 
 [connection signal="body_entered" from="ItemScan" to="." method="_on_item_scan_body_entered"]
 [connection signal="body_exited" from="ItemScan" to="." method="_on_item_scan_body_exited"]

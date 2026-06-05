@@ -1,0 +1,75 @@
+[gd_scene format=3 uid="uid://hp35wr178o02"]
+
+[ext_resource type="Script" uid="uid://btb7xgyw6kw80" path="res://table.gd" id="1_jd0nb"]
+[ext_resource type="PackedScene" uid="uid://badt067otcc3r" path="res://station.tscn" id="2_v5i0k"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ipswn"]
+size = Vector2(150, 150)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_v5i0k"]
+
+[node name="Table" type="StaticBody2D" unique_id=42802581]
+collision_layer = 17
+collision_mask = 17
+script = ExtResource("1_jd0nb")
+metadata/_edit_group_ = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1555712179]
+shape = SubResource("RectangleShape2D_ipswn")
+
+[node name="ColorRect2" type="ColorRect" parent="." unique_id=1525162966]
+custom_minimum_size = Vector2(150, 150)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+color = Color(0.0219672, 0.0961971, 0.171341, 1)
+
+[node name="Station1" parent="." unique_id=1816696912 instance=ExtResource("2_v5i0k")]
+modulate = Color(1, 0.61960787, 0.24313726, 1)
+position = Vector2(-53.38, 0)
+scale = Vector2(0.715, 2.5)
+id = 1
+
+[node name="Station3" parent="." unique_id=1239101449 instance=ExtResource("2_v5i0k")]
+modulate = Color(1, 0.30588236, 0.4627451, 1)
+position = Vector2(53.5, 0)
+scale = Vector2(0.715, 2.5)
+id = 3
+
+[node name="Station2a" parent="." unique_id=1667621568 instance=ExtResource("2_v5i0k")]
+modulate = Color(0.23529412, 0.79607844, 0.6392157, 1)
+position = Vector2(0, -37.405)
+scale = Vector2(1.065, 1.255)
+id = 2
+type = "a"
+automatic = false
+
+[node name="Station2b" parent="." unique_id=1658327745 instance=ExtResource("2_v5i0k")]
+modulate = Color(0.6002512, 0.6854484, 0.90203375, 1)
+position = Vector2(0, 37.405)
+scale = Vector2(1.065, 1.255)
+id = 2
+type = "b"
+automatic = false
+
+[node name="Station_Scan_2a" type="Area2D" parent="." unique_id=1173256559]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Station_Scan_2a" unique_id=1356971293]
+position = Vector2(0, -100)
+scale = Vector2(7, 10)
+shape = SubResource("RectangleShape2D_v5i0k")
+
+[node name="Station_Scan_2b" type="Area2D" parent="." unique_id=1601464195]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Station_Scan_2b" unique_id=1421742985]
+position = Vector2(0, 100)
+scale = Vector2(7, 10)
+shape = SubResource("RectangleShape2D_v5i0k")
+debug_color = Color(0, 0.2901961, 0.99215686, 0.41960785)
+
+[connection signal="body_entered" from="Station_Scan_2a" to="." method="_on_a_hitbox_body_entered"]
+[connection signal="body_exited" from="Station_Scan_2a" to="." method="_on_a_hitbox_body_exited"]

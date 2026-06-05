@@ -75,3 +75,11 @@ func cancel_process():
 func prog_complete():
 	if item == null: return
 	item.inc_state()
+
+
+func _on_a_hitbox_area_entered(area: Area2D) -> void:
+	start_process()
+
+func _on_a_hitbox_area_exited(area: Area2D) -> void:
+	#Edit later
+	cancel_process()

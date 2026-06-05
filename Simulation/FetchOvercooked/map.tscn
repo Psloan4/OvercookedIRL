@@ -1,44 +1,56 @@
-[gd_scene load_steps=11 format=3 uid="uid://3x1ddkxsadt1"]
+[gd_scene format=3 uid="uid://3x1ddkxsadt1"]
 
 [ext_resource type="PackedScene" uid="uid://1uap7k3aigsy" path="res://player.tscn" id="1_t41yw"]
+[ext_resource type="PackedScene" uid="uid://hp35wr178o02" path="res://table.tscn" id="2_71pa8"]
 [ext_resource type="PackedScene" uid="uid://i2108im0hcpx" path="res://spawner.tscn" id="3_46vjg"]
 [ext_resource type="PackedScene" uid="uid://66hq50edksce" path="res://drop_off.tscn" id="4_dw4m3"]
-[ext_resource type="Script" path="res://stats.gd" id="4_hq4q6"]
-[ext_resource type="PackedScene" uid="uid://badt067otcc3r" path="res://station.tscn" id="4_n6us3"]
-[ext_resource type="Script" path="res://data_saver.gd" id="6_x4bx7"]
+[ext_resource type="Script" uid="uid://depk1x8vccqsu" path="res://stats.gd" id="4_hq4q6"]
+[ext_resource type="Script" uid="uid://bwavm0yr168jn" path="res://data_saver.gd" id="6_x4bx7"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_g1cbu"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_6d3w4"]
-size = Vector2(76, 648)
+size = Vector2(294, 648)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_1wmcd"]
-size = Vector2(1000, 74)
+size = Vector2(1000, 83)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ipswn"]
-size = Vector2(300, 150)
+[node name="Map" type="Node2D" unique_id=1890856859]
 
-[node name="Map" type="Node2D"]
-
-[node name="ColorRect" type="ColorRect" parent="."]
-offset_right = 1152.0
-offset_bottom = 648.0
-color = Color(1.92523e-07, 0.253839, 0.298495, 1)
-
-[node name="CenterContainer" type="CenterContainer" parent="ColorRect"]
-layout_mode = 1
+[node name="ColorRect" type="ColorRect" parent="." unique_id=907893253]
+custom_minimum_size = Vector2(576, 324)
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = -1.0
+offset_right = 1147.0
+offset_bottom = 645.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1.92523e-07, 0.253839, 0.298495, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="ColorRect" unique_id=942421741]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -50.0
+offset_top = -50.0
+offset_right = 50.0
+offset_bottom = 50.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="ColorRect" type="ColorRect" parent="ColorRect/CenterContainer"]
-custom_minimum_size = Vector2(1000, 500)
+[node name="ColorRect" type="ColorRect" parent="ColorRect/CenterContainer" unique_id=1348356038]
+custom_minimum_size = Vector2(564, 480)
 layout_mode = 2
 color = Color(0.67557, 0.752012, 0.789303, 1)
 
-[node name="ColorRect2" type="ColorRect" parent="ColorRect"]
+[node name="ColorRect2" type="ColorRect" parent="ColorRect" unique_id=494756551]
+visible = false
 custom_minimum_size = Vector2(300, 150)
 layout_mode = 1
 anchors_preset = 8
@@ -54,84 +66,64 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.0219672, 0.0961971, 0.171341, 1)
 
-[node name="Player1" parent="." node_paths=PackedStringArray("stats") instance=ExtResource("1_t41yw")]
+[node name="Player1" parent="." unique_id=640480398 node_paths=PackedStringArray("stats") instance=ExtResource("1_t41yw")]
 modulate = Color(1, 0.208562, 0.194293, 1)
-position = Vector2(245, 215)
+position = Vector2(358, 190)
+rotation = 3.1415927
+scale = Vector2(1.25, 1.25)
 stats = NodePath("../Stats")
 player_name = "p1"
+move_speed = 300.0
+turn_speed = 2.86
 
-[node name="Player2" parent="." node_paths=PackedStringArray("stats") instance=ExtResource("1_t41yw")]
+[node name="Player2" parent="." unique_id=961178215 node_paths=PackedStringArray("stats") instance=ExtResource("1_t41yw")]
 modulate = Color(0.0627451, 0.690196, 0.690196, 1)
-position = Vector2(251, 453)
+position = Vector2(356, 498)
+scale = Vector2(1.25, 1.25)
 stats = NodePath("../Stats")
 player_name = "p2"
 move_speed = 160.0
 turn_speed = 2.0
 
-[node name="Border" type="StaticBody2D" parent="."]
+[node name="Border" type="StaticBody2D" parent="." unique_id=374164413]
 physics_material_override = SubResource("PhysicsMaterial_g1cbu")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Border"]
-position = Vector2(38, 324)
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Border" unique_id=1367954243]
+position = Vector2(147, 324)
 shape = SubResource("RectangleShape2D_6d3w4")
 
-[node name="CollisionShape2D2" type="CollisionShape2D" parent="Border"]
-position = Vector2(1114, 324)
+[node name="CollisionShape2D2" type="CollisionShape2D" parent="Border" unique_id=680709918]
+position = Vector2(1005, 324)
 shape = SubResource("RectangleShape2D_6d3w4")
 
-[node name="CollisionShape2D3" type="CollisionShape2D" parent="Border"]
-position = Vector2(576, 37)
+[node name="CollisionShape2D3" type="CollisionShape2D" parent="Border" unique_id=1696554808]
+position = Vector2(576, 41.5)
 shape = SubResource("RectangleShape2D_1wmcd")
 
-[node name="CollisionShape2D4" type="CollisionShape2D" parent="Border"]
-position = Vector2(576, 611)
+[node name="CollisionShape2D4" type="CollisionShape2D" parent="Border" unique_id=946163827]
+position = Vector2(576, 604)
 shape = SubResource("RectangleShape2D_1wmcd")
 
-[node name="Table" type="StaticBody2D" parent="."]
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Table"]
+[node name="Table" parent="." unique_id=42802581 instance=ExtResource("2_71pa8")]
 position = Vector2(576, 324)
-shape = SubResource("RectangleShape2D_ipswn")
+scale = Vector2(2.34, 1.24)
 
-[node name="Spawner" parent="." instance=ExtResource("3_46vjg")]
-position = Vector2(46, 322)
+[node name="Spawner" parent="." unique_id=1430677891 instance=ExtResource("3_46vjg")]
+position = Vector2(263, 322)
 
-[node name="Station1" parent="." instance=ExtResource("4_n6us3")]
-position = Vector2(456, 326)
-id = 1
-time = 6.0
+[node name="DropOff" parent="." unique_id=963918749 instance=ExtResource("4_dw4m3")]
+position = Vector2(887, 325)
 
-[node name="Station2a" parent="." instance=ExtResource("4_n6us3")]
-position = Vector2(578, 279)
-id = 2
-type = "a"
-automatic = false
-time = 5.0
+[node name="Items" type="Node2D" parent="." unique_id=671198864]
 
-[node name="Station2b" parent="." instance=ExtResource("4_n6us3")]
-position = Vector2(579, 369)
-id = 2
-type = "b"
-automatic = false
-time = 5.0
-
-[node name="Station3" parent="." instance=ExtResource("4_n6us3")]
-position = Vector2(696, 325)
-id = 3
-
-[node name="DropOff" parent="." instance=ExtResource("4_dw4m3")]
-position = Vector2(1106, 325)
-
-[node name="Items" type="Node2D" parent="."]
-
-[node name="Stats" type="Control" parent="."]
+[node name="Stats" type="Control" parent="." unique_id=2112444985]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 1152.0
 offset_bottom = 647.0
 script = ExtResource("4_hq4q6")
 
-[node name="ScoreBoard" type="Label" parent="Stats"]
+[node name="ScoreBoard" type="Label" parent="Stats" unique_id=896287507]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
@@ -141,7 +133,7 @@ text = "Score: 0"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="TimeLabel" type="Label" parent="Stats"]
+[node name="TimeLabel" type="Label" parent="Stats" unique_id=1321381775]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
@@ -154,7 +146,7 @@ text = "03:00"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="EndPanel" type="Panel" parent="Stats"]
+[node name="EndPanel" type="Panel" parent="Stats" unique_id=1494425598]
 visible = false
 custom_minimum_size = Vector2(700, 400)
 layout_mode = 1
@@ -170,7 +162,7 @@ offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="GameOverLabel" type="Label" parent="Stats/EndPanel"]
+[node name="GameOverLabel" type="Label" parent="Stats/EndPanel" unique_id=585871256]
 layout_mode = 1
 anchors_preset = 14
 anchor_top = 0.5
@@ -185,7 +177,7 @@ text = "GAME OVER"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="FinalScoreLabel" type="Label" parent="Stats/EndPanel"]
+[node name="FinalScoreLabel" type="Label" parent="Stats/EndPanel" unique_id=512257750]
 layout_mode = 1
 anchors_preset = 14
 anchor_top = 0.5
@@ -200,7 +192,7 @@ text = "Final Score: 0"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="StartButton" type="Button" parent="Stats"]
+[node name="StartButton" type="Button" parent="Stats" unique_id=76871038]
 custom_minimum_size = Vector2(600, 200)
 layout_mode = 1
 anchors_preset = 8
@@ -217,9 +209,26 @@ grow_vertical = 2
 theme_override_font_sizes/font_size = 100
 text = "START"
 
-[node name="Timer" type="Timer" parent="Stats"]
+[node name="Timer" type="Timer" parent="Stats" unique_id=2044931085]
 wait_time = 180.0
 one_shot = true
 
-[node name="DataSaver" type="Node" parent="."]
+[node name="DataSaver" type="Node" parent="." unique_id=386973826]
 script = ExtResource("6_x4bx7")
+
+[node name="ColorRect2" type="ColorRect" parent="." unique_id=976247503]
+visible = false
+light_mask = 0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 294.0
+offset_top = 84.0
+offset_right = 858.0
+offset_bottom = 564.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.3866278, 0.96024394, 0.43946084, 0.15294118)
+metadata/_edit_lock_ = true

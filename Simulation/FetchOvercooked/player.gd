@@ -7,6 +7,7 @@ var working_station: Station = null
 @onready var item_scan: Area2D = $ItemScan
 @onready var station_scan: Area2D = $StationScan
 @onready var drop_off_scan: Area2D = $DropOffScan
+@onready var table_scan: Area2D = $TableScan
 
 @export var stats: Stats
 @export var player_name: String
@@ -60,7 +61,7 @@ func _physics_process(delta):
 				_place_into_station(closest_station)
 
 			# Otherwise: drop in front
-			else:
+			elif _can_drop_in_front():
 				_drop_in_front()
 
 	# --- Hold interact to process manual stations (automatic == false) ---
@@ -161,6 +162,14 @@ func _get_closest_station() -> Station:
 			closest = st
 
 	return closest
+
+#checks if a table is in front before allowing drop in front
+func _can_drop_in_front() -> bool:
+	var bodies := table_scan.get_overlapping_bodies()
+	for b in bodies:
+		if b is Table:
+			return true
+	return false
 
 func _get_closest_drop_off() -> Node:
 	# If you have class_name DropOff, change return type to DropOff and the `is` check below.
