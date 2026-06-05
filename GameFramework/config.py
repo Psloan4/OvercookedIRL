@@ -1,6 +1,6 @@
 STATION_CAMERA_DEV = 0
 FINAL_CAMERA_DEV = 1
-GAME_SECONDS = 150
+GAME_SECONDS = 300 #Set to 5 minutes for testing purposes
 TICK_MS = 16  # ~60 FPS UI update
 
 STATION_DEFS = [
@@ -11,8 +11,8 @@ STATION_DEFS = [
 ]
 
 GRID_PLACEMENT = {
-    "1":  (0, 0, 2, 1),  # row, col, rowSpan, colSpan
-    "2a": (0, 1, 1, 1),
+    "1":  (0, 0, 1, 2),  # row, col, colSpan, rowSpan
+    "2a": (1, 0, 1, 1),
     "2b": (1, 1, 1, 1),
-    "3":  (0, 2, 2, 1),
+    "3":  (2, 0, 1, 2),
 }
