@@ -1,5 +1,15 @@
-STATION_CAMERA_DEV = 0
-FINAL_CAMERA_DEV = 1
+# --- Camera sources ---------------------------------------------------------
+# On the camera PC (PC-B) the cameras are local indices, but on the dev PC
+# (PC-A) there are no cameras attached, so we read them over the network from
+# the MJPEG stream that multiplecamreader.py --stream serves.
+#
+# Set CAMERA_HOST to PC-B's LAN IP (it's printed when you start the stream).
+# To run locally on PC-B instead, set STATION_CAMERA_DEV = 0 / FINAL_CAMERA_DEV = 1.
+CAMERA_HOST = "10.55.11.161"   # <-- change to PC-B's IP
+CAMERA_PORT = 8080
+
+STATION_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/0"
+FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/1"
 GAME_SECONDS = 300 #Set to 5 minutes for testing purposes
 TICK_MS = 16  # ~60 FPS UI update
 
