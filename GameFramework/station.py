@@ -30,7 +30,7 @@ class Station:
         self.type = type
         self.feed_relay: FeedRelay = feed_relay
         self.item_handler: ItemHandler = item_handler
-        self.tag_det = ArucoTagDetector()
+        self.tag_det = ArucoTagDetector("DICT_4X4_50")
         self.scan_time = float(scan_time)
 
         self.show_window = show_window
