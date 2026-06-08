@@ -10,8 +10,9 @@ class Station:
     READY = "ready"
     SCANNING = "scanning"
 
-    # How many consecutive "missed" frames before we drop the target
-    GRACE_FRAMES = 20
+    # How long (in seconds) the target can go undetected before we drop it.
+    # Time-based so it behaves the same regardless of loop / frame rate.
+    GRACE_SECONDS = 1.5
 
     def __init__(
         self,
@@ -30,7 +31,7 @@ class Station:
         self.type = type
         self.feed_relay: FeedRelay = feed_relay
         self.item_handler: ItemHandler = item_handler
-        self.tag_det = ArucoTagDetector()
+        self.tag_det = ArucoTagDetector("DICT_4X4_50")
         self.scan_time = float(scan_time)
 
         self.show_window = show_window
@@ -44,6 +45,7 @@ class Station:
         # Target tracking
         self.target_tag: int | None = None
         self.miss_count = 0
+        self.last_seen_time: float | None = None    # wall time target was last detected
 
         # Scan timing: accumulate "seen time" so flicker doesn't reset scanning
         self.scan_start_time: float | None = None   # when we entered SCANNING
@@ -102,6 +104,7 @@ class Station:
         self.state = self.READY
         self.target_tag = None
         self.miss_count = 0
+        self.last_seen_time = None
         self.scan_start_time = None
         self.scan_accum = 0.0
         self.last_tick_time = None
@@ -192,6 +195,7 @@ class Station:
             preferred = [t for t in candidates if t in valid_tags]
             self.target_tag = preferred[0] if preferred else candidates[0]
             self.miss_count = 0
+            self.last_seen_time = now
             self._reset_scan_timer()
 
         # We have a target: prioritize it and count misses
@@ -199,12 +203,19 @@ class Station:
 
         if target_present:
             self.miss_count = 0
+            self.last_seen_time = now
         else:
             self.miss_count += 1
-            if self.miss_count > self.GRACE_FRAMES:
+            if self.last_seen_time is None:
+                self.last_seen_time = now
+
+            # Drop the target only after it's been gone for GRACE_SECONDS of
+            # real time (frame-rate independent), not a fixed frame count.
+            if (now - self.last_seen_time) > self.GRACE_SECONDS:
                 # Drop target after grace timeout and immediately try to pick a new one this frame
                 self.target_tag = None
                 self.miss_count = 0
+                self.last_seen_time = None
                 self._reset_scan_timer()
 
                 candidates = [t for t in ids if t != self.covered]
@@ -214,6 +225,7 @@ class Station:
 
                 preferred = [t for t in candidates if t in valid_tags]
                 self.target_tag = preferred[0] if preferred else candidates[0]
+                self.last_seen_time = now
                 self.state = self.READY
                 return {"state": self.READY, "progress": None, "target": self.target_tag}
 
@@ -221,10 +233,14 @@ class Station:
         # SCANNING LOGIC (flicker-safe)
         # -----------------------------
 
-        # If game logic says we shouldn't scan this target, stay READY but keep the target (grace still applies)
+        # If game logic says we shouldn't scan this target, stay READY but keep
+        # the target (grace still applies). PAUSE progress instead of wiping it:
+        # a one-frame glitch (covered tag flickers in, item state hiccups) must
+        # not throw away seconds of accumulated scanning. We freeze last_tick_time
+        # so the paused interval isn't counted when scanning resumes.
         if not self._target_should_scan(ids):
             self.state = self.READY
-            self._reset_scan_timer()
+            self.last_tick_time = now
             return {"state": self.READY, "progress": None, "target": self.target_tag}
 
         # Valid target: scanning. Do NOT reset scan timer on brief misses.

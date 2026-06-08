@@ -10,7 +10,7 @@ class FinalStation:
     def __init__(self, feed_relay, item_handler):
         self.feed_relay: FeedRelay = feed_relay
         self.item_handler: ItemHandler = item_handler
-        self.tag_det: ArucoTagDetector = ArucoTagDetector()
+        self.tag_det: ArucoTagDetector = ArucoTagDetector("DICT_4X4_50")
 
     def _tick(self):
         image = self.feed_relay.get_frame()
