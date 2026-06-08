@@ -183,7 +183,7 @@ def main():
         "--cams",
         type=int,
         nargs="+",
-        default=[0, 1, 2, 3],
+        default=[0,1,2,3,4],
         help="Camera indices, e.g. --cams 0 1 2 3"
     )
     ap.add_argument("--width", type=int, default=640)
@@ -208,6 +208,7 @@ def main():
         action="store_true",
         help="Don't open a local window (useful when only streaming). Ctrl+C to quit."
     )
+    ap.add_argument("--clean", action="store_true", help="Displays only the raw camera input without detecting tags")
     args = ap.parse_args()
 
     backend_map = {
@@ -242,7 +243,7 @@ def main():
     if args.headless:
         print("Running headless. Press Ctrl+C to quit.")
     else:
-        print("Press q or ESC to quit.")
+        print("Press Crtl+C to quit.")
 
     try:
         while True:
@@ -269,9 +270,10 @@ def main():
                     if args.stream:
                         publish(f"cam/{cam_index}", placeholder)
                     continue
-
-                display, ids = detect_markers(frame, aruco_dict, params, detector, use_new_api)
-                display = annotate_frame(display, cam_index, ids)
+                display = frame
+                if not args.clean:
+                    display, ids = detect_markers(frame, aruco_dict, params, detector, use_new_api)
+                    display = annotate_frame(display, cam_index, ids)
                 dashboard_frames.append(display)
                 if args.stream:
                     publish(f"cam/{cam_index}", display)
