@@ -1,23 +1,64 @@
 import cv2
+import threading
+
 
 class FeedRelay:
+    """
+    Low-latency frame source.
+
+    A background thread continuously drains the capture so OpenCV's internal
+    receive buffer never backs up. `update_image()` just snapshots the most
+    recent decoded frame. On a network MJPEG stream this is the difference
+    between "always the freshest frame" and "frames that fall seconds behind
+    reality as the game runs".
+    """
+
     def __init__(self, feed_fp):
         self.cap = cv2.VideoCapture(feed_fp)
         if not self.cap.isOpened():
             raise RuntimeError(f"Could not open video feed: {feed_fp}")
 
+        # Ask the backend to keep at most one buffered frame (honored by some
+        # backends; the reader thread below handles the rest).
+        try:
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        except Exception:
+            pass
+
         self.frame = None
         self.frame_height = None
         self.frame_width = None
 
+        self._latest = None
+        self._lock = threading.Lock()
+        self._running = True
+        self._thread = threading.Thread(target=self._reader, daemon=True)
+        self._thread.start()
+
+    def _reader(self):
+        """Continuously grab frames, keeping only the newest one."""
+        while self._running:
+            ret, frame = self.cap.read()
+            if not ret or frame is None:
+                # Transient network/decode hiccup; keep going.
+                continue
+            with self._lock:
+                self._latest = frame
+
     def update_image(self):
         """
-        Grab the latest frame from the video feed.
+        Snapshot the latest frame from the reader thread.
         Call this once per tick.
         """
-        ret, frame = self.cap.read()
-        if not ret or frame is None:
-            raise RuntimeError("Failed to read frame from feed")
+        with self._lock:
+            frame = self._latest
+
+        if frame is None:
+            # No frame has arrived yet. Don't crash the game over a transient
+            # gap; keep the previous frame if we have one.
+            if self.frame is None:
+                raise RuntimeError("Failed to read frame from feed (no frames yet)")
+            return
 
         self.frame = frame
         self.frame_height, self.frame_width = frame.shape[:2]
@@ -56,4 +97,7 @@ class FeedRelay:
         return self.frame
 
     def release(self):
+        self._running = False
+        if self._thread.is_alive():
+            self._thread.join(timeout=1.0)
         self.cap.release()
