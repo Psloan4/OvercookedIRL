@@ -2,6 +2,7 @@ import subprocess
 import sys
 import pygame
 import os
+import argparse
 from PySide6.QtWidgets import QApplication, QStackedWidget
 from PySide6.QtCore import QTimer
 
@@ -11,7 +12,7 @@ from item import ItemHandler
 from station import Station
 
 from style import APP_QSS
-from config import STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, GRID_PLACEMENT
+from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, GRID_PLACEMENT
 from ui_components import StartPage, GamePage, EndPage
 
 
@@ -128,9 +129,43 @@ class OvercookedIRLApp:
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    app.setStyleSheet(APP_QSS)
 
+    # #Arguments
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "--station",
+        type = int,
+        default = 4,
+        help = "Index of camera used for station detection (Default = 4)"
+    )
+    ap.add_argument(
+        "--host",
+        type = str,
+        help = "IP of host device streaming camera feeds"
+    )
+    ap.add_argument(
+        "--port",
+        type = int,
+        help = "Port of host device streaming camera feeds"
+    )
+    ap.add_argument(
+        "--local",
+        action = "store_true",
+        help = "Configures main to run using local cameras instead of streaming"
+    )
+    args = ap.parse_args()
+
+    if not args.host is None:
+        CAMERA_HOST = args.host
+    if not args.port is None:
+        CAMERA_PORT = args.port
+    if args.local:
+        STATION_CAMERA_DEV = args.station
+    else :
+        STATION_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/{args.station}"
+
+    app = QApplication()
+    app.setStyleSheet(APP_QSS)
     ui = OvercookedIRLApp()
     ui.run()
 
