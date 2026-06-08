@@ -101,7 +101,7 @@ class StationCard(QWidget):
         top_row.setContentsMargins(0, 0, 0, 0)
 
         title = QLabel(f"Station {station_type}")
-        title.setStyleSheet("font-size: 64px; font-weight: 900;")
+        title.setStyleSheet("font-size: 32px; font-weight: 900;")
 
         self.badge = QLabel("READY")
         self.badge.setAlignment(Qt.AlignCenter)
