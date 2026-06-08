@@ -8,16 +8,16 @@
 CAMERA_HOST = "10.55.11.161"   # <-- change to PC-B's IP
 CAMERA_PORT = 8080
 
-STATION_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/0"
-FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/1"
+STATION_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/4"
+FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/4"
 GAME_SECONDS = 300 #Set to 5 minutes for testing purposes
 TICK_MS = 16  # ~60 FPS UI update
 
 STATION_DEFS = [
-    dict(x=7, y=79, w=201, h=331, scan_time=12, type="1",  show_window=True, covered=None),
-    dict(x=7 + 201, y=79, w=263, h=178, scan_time=6, type="2a", show_window=True, covered=50),
-    dict(x=7 + 201, y=79 + 178, w=263, h=153, scan_time=6, type="2b", show_window=True, covered=150),
-    dict(x=7 + 201 + 263, y=79, w=164, h=333, scan_time=12, type="3",  show_window=True, covered=None),
+    dict(x=7, y=110, w=155, h=322, scan_time=12, type="1",  show_window=True, covered=None),
+    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6, type="2a", show_window=True, covered=50),
+    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6, type="2b", show_window=True, covered=150),
+    dict(x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12, type="3",  show_window=True, covered=None),
 ]
 
 GRID_PLACEMENT = {
