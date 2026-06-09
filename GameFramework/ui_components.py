@@ -118,6 +118,11 @@ class StationCard(QWidget):
         self.tag_label.setObjectName("HudLabel")
         self.tag_label.setStyleSheet("font-size: 44px; font-weight: 900;")
 
+        self.listed_tags = QLabel("Detected tags: ")
+        self.listed_tags.setObjectName("Listed_Tags")
+        self.listed_tags.setStyleSheet("font-size: 44px; font-weight: 900;")
+
+
         self.bar = QProgressBar()
         self.bar.setRange(0, 100)
         self.bar.setValue(0)
@@ -131,6 +136,7 @@ class StationCard(QWidget):
         layout.addLayout(top_row)
         layout.addWidget(self.tag_label)
         layout.addWidget(self.bar)
+        layout.addWidget(self.listed_tags)
         layout.addStretch(1)
 
     def reset_ui(self):
@@ -176,6 +182,9 @@ class StationCard(QWidget):
 
         self.badge.style().unpolish(self.badge)
         self.badge.style().polish(self.badge)
+
+        self.listed_tags.setText(f"Detected tags: {status['ids']}")
+        self.listed_tags.show()
 
 
 class GamePage(QWidget):

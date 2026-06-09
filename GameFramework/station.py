@@ -189,7 +189,7 @@ class Station:
                 self.state = self.READY
                 self.miss_count = 0
                 self._reset_scan_timer()
-                return {"state": self.READY, "progress": None, "target": None}
+                return {"state": self.READY, "progress": None, "target": None, "ids": ids}
 
             # Prefer a valid tag if present; else any seen tag
             preferred = [t for t in candidates if t in valid_tags]
@@ -221,13 +221,13 @@ class Station:
                 candidates = [t for t in ids if t != self.covered]
                 if not candidates:
                     self.state = self.READY
-                    return {"state": self.READY, "progress": None, "target": None}
+                    return {"state": self.READY, "progress": None, "target": None, "ids": ids}
 
                 preferred = [t for t in candidates if t in valid_tags]
                 self.target_tag = preferred[0] if preferred else candidates[0]
                 self.last_seen_time = now
                 self.state = self.READY
-                return {"state": self.READY, "progress": None, "target": self.target_tag}
+                return {"state": self.READY, "progress": None, "target": self.target_tag, "ids": ids}
 
         # -----------------------------
         # SCANNING LOGIC (flicker-safe)
@@ -241,7 +241,7 @@ class Station:
         if not self._target_should_scan(ids):
             self.state = self.READY
             self.last_tick_time = now
-            return {"state": self.READY, "progress": None, "target": self.target_tag}
+            return {"state": self.READY, "progress": None, "target": self.target_tag, "ids": ids}
 
         # Valid target: scanning. Do NOT reset scan timer on brief misses.
         self.state = self.SCANNING
@@ -286,6 +286,7 @@ class Station:
                 "progress": None,
                 "target": None,
                 "completed": finished_tag,
+                "ids": ids
             }
 
-        return {"state": self.SCANNING, "progress": progress, "target": self.target_tag}
+        return {"state": self.SCANNING, "progress": progress, "target": self.target_tag, "ids": ids}
