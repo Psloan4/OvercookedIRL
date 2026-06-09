@@ -10,9 +10,14 @@ class Station:
     READY = "ready"
     SCANNING = "scanning"
 
-    # How long (in seconds) the target can go undetected before we drop it.
-    # Time-based so it behaves the same regardless of loop / frame rate.
-    GRACE_SECONDS = 1.5
+    # How long (in seconds) the target can go undetected before we drop it AND
+    # discard progress. While it's missing but under this window, scanning just
+    # PAUSES (progress is preserved), so a brief dropout doesn't reset the scan.
+    # Generous on purpose: real cameras lose a tag for a moment all the time.
+    GRACE_SECONDS = 4.0
+
+    # Print per-event diagnostics ([SCAN START/FINISH], [TARGET DROP]).
+    DEBUG = True
 
     def __init__(
         self,
@@ -213,6 +218,12 @@ class Station:
             # real time (frame-rate independent), not a fixed frame count.
             if (now - self.last_seen_time) > self.GRACE_SECONDS:
                 # Drop target after grace timeout and immediately try to pick a new one this frame
+                if self.DEBUG:
+                    print(
+                        f"[TARGET DROP] Station={self.type} "
+                        f"Tag={self.target_tag} gone>{self.GRACE_SECONDS}s "
+                        f"(lost {self.scan_accum:.1f}/{self.scan_time}s progress)"
+                    )
                 self.target_tag = None
                 self.miss_count = 0
                 self.last_seen_time = None
@@ -259,9 +270,12 @@ class Station:
         dt = 0.0 if self.last_tick_time is None else (now - self.last_tick_time)
         self.last_tick_time = now
 
-        # Accumulate scan time ONLY while the tag is actually present
-        #if target_present:
-        self.scan_accum += dt
+        # Accumulate scan time ONLY while the tag is actually present.
+        # While it's briefly missing (within GRACE_SECONDS) we simply don't add
+        # time -> progress PAUSES and is preserved, instead of filling on thin
+        # air and then snapping to zero when grace expires.
+        if target_present:
+            self.scan_accum += dt
 
         progress = 1.0 if self.scan_time <= 0 else min(self.scan_accum / self.scan_time, 1.0)
 
