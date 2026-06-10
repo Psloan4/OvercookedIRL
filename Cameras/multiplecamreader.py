@@ -208,7 +208,11 @@ def main():
         action="store_true",
         help="Don't open a local window (useful when only streaming). Ctrl+C to quit."
     )
-    ap.add_argument("--clean", action="store_true", help="Displays only the raw camera input without detecting tags")
+    ap.add_argument(
+        "--clean",
+        action="store_true",
+        help="Displays only the raw camera input without detecting tags"
+    )
     args = ap.parse_args()
 
     backend_map = {

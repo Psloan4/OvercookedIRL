@@ -27,9 +27,29 @@ GRID_PLACEMENT = {
     "3":  (0, 2, 2, 1),
 }
 
-PLAYERS = {0, 1}
+IDS = { #Currently supports burgers and fries -- soon to add Player
+    0: "BURGER",
+    1: "BURGER",
+    2: "BURGER",
+    3: "FRIES",
+    4: "FRIES",
+}
 
-# Real-world table size (cm). The on-screen table is locked to this aspect
+BURGER = [
+    ["1"], #Raw Patty
+    ["2a", "2b"], #I dunno add cheese or smth
+    ["3"], #cook again for some reason
+    ["complete"]
+]
+
+FRIES = [
+    ["2a","2b"], #Cut into slices
+    ["1","3"], #cook
+    ["complete"]
+]
+
+# --- Spatial table view -----------------------------------------------------
+# Real-world table size (cm). The on-screen table is locked to this aspect ratio.
 TABLE_CM = (117, 62)
 
 # Bounding box of the table within the camera frame, in pixels: (x, y, w, h).
@@ -39,6 +59,5 @@ TABLE_REGION = (7, 110, 604, 322)
 ASSET_MAP = {
     0: "patty.png",
 }
-
 
 # hi my name is bryson and i like to eat food and barbecue and i like overcooked even though i dont really play it. but i love overcookedirl even moreeeeeeeee.
