@@ -89,6 +89,49 @@ QWidget#TableView {
     background: #e9edf5;
 }
 
+/* Station drawn as a translucent panel on the table surface. */
+QWidget#StationZone {
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid #c4cdda;
+    border-radius: 12px;
+}
+QWidget#StationZone[scan="true"] {
+    background: rgba(37, 99, 235, 0.14);
+    border: 1px solid #93c5fd;
+}
+QLabel#ZoneName {
+    font-size: 44px;
+    font-weight: 900;
+    color: #1f2937;
+    background: transparent;
+    border: none;
+}
+QLabel#ZoneInfo {
+    font-size: 34px;
+    font-weight: 800;
+    color: #4b5563;
+    background: transparent;
+    border: none;
+}
+QLabel#PillReady {
+    background: #eef1f7;
+    color: #374151;
+    border: 1px solid #cbd5e1;
+    padding: 8px 22px;
+    border-radius: 999px;
+    font-size: 30px;
+    font-weight: 900;
+}
+QLabel#PillScan {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #93c5fd;
+    padding: 8px 22px;
+    border-radius: 999px;
+    font-size: 30px;
+    font-weight: 900;
+}
+
 /* Thin per-item scan bar that sits under each patty on the table. */
 QProgressBar#ScanBar {
     background: rgba(0, 0, 0, 0.18);
@@ -97,7 +140,7 @@ QProgressBar#ScanBar {
     height: 8px;
 }
 QProgressBar#ScanBar::chunk {
-    background: #22c55e;
+    background: #2563eb;
     border-radius: 4px;
 }
 """

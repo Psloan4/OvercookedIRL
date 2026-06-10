@@ -66,7 +66,7 @@ class OvercookedIRLApp:
 
         # pages
         self.start_page = StartPage(self.start_game)
-        self.game_page = GamePage([s.type for s in self.stations], GRID_PLACEMENT)
+        self.game_page = GamePage()
         self.end_page = EndPage(self.go_to_start)
 
         self.stack.addWidget(self.start_page)
@@ -128,12 +128,16 @@ class OvercookedIRLApp:
 
         # tag_id -> scan progress (0..1) for whichever tag each station is scanning
         scan_progress: dict[int, float] = {}
+        statuses: dict[str, dict] = {}
         for station in self.stations:
             status = station._tick()
-            self.game_page.cards_by_type[station.type].update_from_status(status, self.item_handler)
+            statuses[station.type] = status
             target = status.get("target")
             if status.get("state") == Station.SCANNING and target is not None:
                 scan_progress[target] = status.get("progress")
+
+        # Drive the station zones (pills + detected-tag/item-stage info).
+        self.game_page.update_stations(statuses, self.item_handler)
 
         fss = self.final_station._tick()
         if fss["state"] == self.final_station.COMPLETE:

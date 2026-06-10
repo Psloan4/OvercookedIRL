@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QRect
 from PySide6.QtGui import QPainter, QPixmap, QColor, QFont, QBrush, QPen
 
 from station import Station
-from config import ASSET_MAP, TABLE_CM
+from config import ASSET_MAP, TABLE_CM, TABLE_REGION, STATION_DEFS
 
 _ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
@@ -223,10 +223,10 @@ def _make_placeholder(tag_id: int, size: int) -> QPixmap:
     px.fill(Qt.transparent)
     p = QPainter(px)
     p.setRenderHint(QPainter.Antialiasing)
-    p.setBrush(QBrush(QColor("#e0a458")))
-    p.setPen(QPen(QColor("#7a4f12"), 2))
+    p.setBrush(QBrush(QColor("#dbe4f0")))
+    p.setPen(QPen(QColor("#2563eb"), 2))
     p.drawEllipse(2, 2, size - 4, size - 4)
-    p.setPen(QColor("#2a1c08"))
+    p.setPen(QColor("#1d4ed8"))
     f = QFont()
     f.setBold(True)
     f.setPointSize(max(8, size // 4))
@@ -290,11 +290,85 @@ class TagIcon(QWidget):
             self.bar.setValue(int(max(0.0, min(1.0, float(progress))) * 100))
 
 
+class StationZone(QWidget):
+    """
+    A station drawn as a region on the table (not a separate card). Shows the
+    station name, a READY/SCANNING pill, and a corner line with the detected
+    tags + current item stage.
+    """
+
+    def __init__(self, station_type: str, parent=None):
+        super().__init__(parent)
+        self.station_type = station_type
+        self.setObjectName("StationZone")
+        self.setAttribute(Qt.WA_StyledBackground, True)
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(12, 10, 12, 10)
+        lay.setSpacing(4)
+
+        top = QHBoxLayout()
+        top.setContentsMargins(0, 0, 0, 0)
+
+        self.name = QLabel(f"Station {station_type}")
+        self.name.setObjectName("ZoneName")
+
+        self.pill = QLabel("READY")
+        self.pill.setObjectName("PillReady")
+        self.pill.setAlignment(Qt.AlignCenter)
+
+        top.addWidget(self.name)
+        top.addStretch(1)
+        top.addWidget(self.pill)
+
+        # corner info (detected tags + item stage) pinned to the bottom-left
+        self.info = QLabel("")
+        self.info.setObjectName("ZoneInfo")
+        self.info.setWordWrap(True)
+        self.info.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+
+        lay.addLayout(top)
+        lay.addStretch(1)
+        lay.addWidget(self.info)
+
+        self.normalized_rect = (0.0, 0.0, 1.0, 1.0)  # set by TableView
+
+    def _set_scanning(self, scanning: bool):
+        new_obj = "PillScan" if scanning else "PillReady"
+        if self.pill.objectName() != new_obj:
+            self.pill.setObjectName(new_obj)
+            self.pill.setText("SCANNING" if scanning else "READY")
+            self.pill.style().unpolish(self.pill)
+            self.pill.style().polish(self.pill)
+        if self.property("scan") != scanning:
+            self.setProperty("scan", scanning)
+            self.style().unpolish(self)
+            self.style().polish(self)
+
+    def update_status(self, status: dict, item_handler):
+        scanning = status.get("state") == Station.SCANNING
+        self._set_scanning(scanning)
+
+        lines = []
+        target = status.get("target")
+        if target is not None and item_handler.has_item(target):
+            lines.append(f"Item: {item_handler.get_item(target).state}")
+        ids = status.get("ids")
+        if ids:
+            lines.append(f"Tags: {list(ids)}")
+        self.info.setText("\n".join(lines))
+
+    def reset(self):
+        self._set_scanning(False)
+        self.info.setText("")
+
+
 class TableView(QWidget):
     """
-    Draws the physical table to scale and places item icons where their tags
-    actually are. Positions arrive as normalized (0..1) table coordinates, so
-    this widget never needs to know about cameras or pixels.
+    Draws the physical table to scale, splits it into the station zones (from
+    STATION_DEFS), and places item icons where their tags actually are.
+    Positions arrive as normalized (0..1) table coordinates, so this widget
+    never needs to know about cameras or pixels.
     """
 
     def __init__(self, parent=None):
@@ -306,6 +380,21 @@ class TableView(QWidget):
         self._aspect = TABLE_CM[0] / TABLE_CM[1]
         self._icons: dict[int, TagIcon] = {}
         self._table_rect = QRect()
+
+        # Station zones, positioned from STATION_DEFS mapped through TABLE_REGION
+        # into normalized table coordinates (same space the tags map into).
+        tx, ty, tw, th = TABLE_REGION
+        self._zones: dict[str, StationZone] = {}
+        for d in STATION_DEFS:
+            zone = StationZone(d["type"], self)
+            zone.normalized_rect = (
+                (d["x"] - tx) / tw,
+                (d["y"] - ty) / th,
+                d["w"] / tw,
+                d["h"] / th,
+            )
+            self._zones[d["type"]] = zone
+            zone.show()
 
     def _compute_table_rect(self) -> QRect:
         """Largest rectangle matching the real table's aspect, centered."""
@@ -328,8 +417,8 @@ class TableView(QWidget):
         self._table_rect = self._compute_table_rect()
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        p.setBrush(QBrush(QColor("#e8dcc6")))   # warm countertop
-        p.setPen(QPen(QColor("#c9b79a"), 3))
+        p.setBrush(QBrush(QColor("#eef2f8")))   # light blue-gray tabletop
+        p.setPen(QPen(QColor("#c4cdda"), 3))
         p.drawRoundedRect(self._table_rect, 14, 14)
         p.end()
         self._reposition()
@@ -357,6 +446,7 @@ class TableView(QWidget):
             icon.set_progress(entry.get("progress"))
             icon.nx = entry["nx"]
             icon.ny = entry["ny"]
+            icon.raise_()  # keep items above the station zones
 
         for tid in list(self._icons.keys()):
             if tid not in seen:
@@ -365,8 +455,25 @@ class TableView(QWidget):
 
         self._reposition()
 
+    def update_stations(self, statuses: dict[str, dict], item_handler):
+        """statuses: {station_type: status_dict} — drives each zone's pill/info."""
+        for stype, zone in self._zones.items():
+            if stype in statuses:
+                zone.update_status(statuses[stype], item_handler)
+
     def _reposition(self):
         r = self._table_rect
+
+        gap = 3
+        for zone in self._zones.values():
+            nx, ny, nw, nh = zone.normalized_rect
+            zone.setGeometry(
+                int(r.x() + nx * r.width()) + gap,
+                int(r.y() + ny * r.height()) + gap,
+                max(1, int(nw * r.width()) - 2 * gap),
+                max(1, int(nh * r.height()) - 2 * gap),
+            )
+
         for icon in self._icons.values():
             cx = r.x() + icon.nx * r.width()
             cy = r.y() + icon.ny * r.height()
@@ -378,82 +485,61 @@ class TableView(QWidget):
         for icon in self._icons.values():
             icon.deleteLater()
         self._icons.clear()
+        for zone in self._zones.values():
+            zone.reset()
         self.update()
 
 
 class GamePage(QWidget):
-    def __init__(self, station_types: list[str], placement_map: dict[str, tuple[int, int, int, int]]):
+    """One big table view: stations are zones on the table, items sit where
+    their tags are, and points/time float in the corners."""
+
+    def __init__(self):
         super().__init__()
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 24, 24, 24)
-        root.setSpacing(20)
+        root.setContentsMargins(16, 16, 16, 16)
 
-        # HUD
-        hud = QWidget()
-        hud.setObjectName("Card")
-        hud.setAttribute(Qt.WA_StyledBackground, True)
-        hud.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-        hud_layout = QHBoxLayout(hud)
-        hud_layout.setContentsMargins(28, 24, 28, 24)
-        hud_layout.setSpacing(64)
-
-        # points
-        points_block = QWidget()
-        points_layout = QVBoxLayout(points_block)
-        points_layout.setSpacing(6)
-
-        points_label = QLabel("POINTS")
-        points_label.setStyleSheet(
-            "font-size: 44px; font-weight: 900; letter-spacing: 2px;"
-        )
-
-        self.points_value = QLabel("0")
-        self.points_value.setStyleSheet("font-size: 120px; font-weight: 900;")
-
-        points_layout.addWidget(points_label)
-        points_layout.addWidget(self.points_value)
-
-        # time
-        time_block = QWidget()
-        time_layout = QVBoxLayout(time_block)
-        time_layout.setSpacing(6)
-
-        time_label = QLabel("TIME LEFT")
-        time_label.setStyleSheet(
-            "font-size: 44px; font-weight: 900; letter-spacing: 2px;"
-        )
-
-        self.time_value = QLabel("2:00")
-        self.time_value.setStyleSheet("font-size: 120px; font-weight: 900;")
-
-        time_layout.addWidget(time_label)
-        time_layout.addWidget(self.time_value)
-
-        hud_layout.addWidget(points_block)
-        hud_layout.addStretch(1)
-        hud_layout.addWidget(time_block)
-
-        root.addWidget(hud)
-
-        # spatial table view (main play area) — items drawn where their tags are
         self.table_view = TableView()
-        self.table_view.setMinimumHeight(260)  # never let the cards squeeze it to nothing
-        root.addWidget(self.table_view, 3)
+        root.addWidget(self.table_view)
 
-        # station grid (status strip beneath the table)
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(28)
-        grid.setVerticalSpacing(28)
+        # HUD: children of the page so they float over the table corners.
+        self.points_block, self.points_value = self._make_hud_block("POINTS", "0")
+        self.time_block, self.time_value = self._make_hud_block("TIME LEFT", "2:00")
+        self.points_block.raise_()
+        self.time_block.raise_()
 
-        self.cards_by_type: dict[str, StationCard] = {}
-        for stype in station_types:
-            card = StationCard(stype)
-            self.cards_by_type[stype] = card
-            r, c, rs, cs = placement_map[stype]
-            grid.addWidget(card, r, c, rs, cs)
+    def _make_hud_block(self, label_text: str, value_text: str):
+        block = QWidget(self)
+        block.setObjectName("Card")
+        block.setAttribute(Qt.WA_StyledBackground, True)
 
-        root.addLayout(grid, 1)
+        # Horizontal layout => a wide, short card (label beside the value).
+        lay = QHBoxLayout(block)
+        lay.setContentsMargins(34, 12, 34, 12)
+        lay.setSpacing(24)
+
+        lbl = QLabel(label_text)
+        lbl.setObjectName("HudLabel")
+        lbl.setStyleSheet("font-size: 40px; font-weight: 900; letter-spacing: 2px;")
+
+        val = QLabel(value_text)
+        val.setStyleSheet("font-size: 76px; font-weight: 900;")
+
+        lay.addWidget(lbl)
+        lay.addWidget(val, 0, Qt.AlignVCenter)
+        return block, val
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        m = 28
+        self.points_block.adjustSize()
+        self.time_block.adjustSize()
+        # points bottom-left, time bottom-right
+        self.points_block.move(m, self.height() - self.points_block.height() - m)
+        self.time_block.move(
+            self.width() - self.time_block.width() - m,
+            self.height() - self.time_block.height() - m,
+        )
 
     def set_points(self, points: int):
         self.points_value.setText(str(points))
@@ -461,10 +547,11 @@ class GamePage(QWidget):
     def set_time_left(self, seconds: int):
         self.time_value.setText(fmt_mmss(seconds))
 
-    def reset_station_cards(self):
-        for card in self.cards_by_type.values():
-            card.reset_ui()
-        self.table_view.reset()
-
     def update_tags(self, render_list: list[dict]):
         self.table_view.update_tags(render_list)
+
+    def update_stations(self, statuses: dict[str, dict], item_handler):
+        self.table_view.update_stations(statuses, item_handler)
+
+    def reset_station_cards(self):
+        self.table_view.reset()
