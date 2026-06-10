@@ -84,4 +84,20 @@ QProgressBar::chunk {
 QGroupBox {
     border: none;
 }
+
+QWidget#TableView {
+    background: #e9edf5;
+}
+
+/* Thin per-item scan bar that sits under each patty on the table. */
+QProgressBar#ScanBar {
+    background: rgba(0, 0, 0, 0.18);
+    border: none;
+    border-radius: 4px;
+    height: 8px;
+}
+QProgressBar#ScanBar::chunk {
+    background: #22c55e;
+    border-radius: 4px;
+}
 """

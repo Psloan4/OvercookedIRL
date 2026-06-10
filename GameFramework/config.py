@@ -29,5 +29,16 @@ GRID_PLACEMENT = {
 
 PLAYERS = {0, 1}
 
+# Real-world table size (cm). The on-screen table is locked to this aspect
+TABLE_CM = (117, 62)
+
+# Bounding box of the table within the camera frame, in pixels: (x, y, w, h).
+TABLE_REGION = (7, 110, 604, 322)
+
+# Tag ID to image filename (in the future, it will be item state mapped to picture)
+ASSET_MAP = {
+    0: "patty.png",
+}
+
 
 # hi my name is bryson and i like to eat food and barbecue and i like overcooked even though i dont really play it. but i love overcookedirl even moreeeeeeeee.
