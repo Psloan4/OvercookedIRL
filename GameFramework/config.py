@@ -27,7 +27,25 @@ GRID_PLACEMENT = {
     "3":  (0, 2, 2, 1),
 }
 
-PLAYERS = {0, 1}
+IDS = { #Currently supports burgers and fries -- soon to add Player
+    0: "BURGER",
+    1: "BURGER",
+    2: "BURGER",
+    3: "FRIES",
+    4: "FRIES",
+}
 
+BURGER = [
+    ["1"], #Raw Patty
+    ["2a", "2b"], #I dunno add cheese or smth
+    ["3"], #cook again for some reason
+    ["complete"]
+]
+
+FRIES = [
+    ["2a","2b"], #Cut into slices
+    ["1","3"], #cook
+    ["complete"]
+]
 
 # hi my name is bryson and i like to eat food and barbecue and i like overcooked even though i dont really play it. but i love overcookedirl even moreeeeeeeee.
