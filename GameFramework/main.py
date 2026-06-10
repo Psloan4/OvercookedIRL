@@ -43,26 +43,23 @@ class OvercookedIRLApp:
             self.stations.append(
                 Station(
                     d["x"], d["y"], d["w"], d["h"],
-                    self.station_feed_relay,
                     d["scan_time"],
                     d["type"],
                     self.item_handler,
-                    d["show_window"],
                     d["covered"],
                 )
             )
         self.final_station = FinalStation(self.final_feed_relay, self.item_handler)
 
-        # Independent full-frame detector used ONLY for rendering item positions.
-        # Kept separate from the per-station logic (station.py) so we don't have
-        # to touch that file: stations score on ROI crops, this maps the whole
-        # frame -> screen.
-        self.render_detector = ArucoTagDetector("DICT_4X4_50")
-        # Full-frame detection is expensive; run it every Nth UI tick instead of
-        # every frame. At TICK_MS=16 (~60fps), RENDER_EVERY=4 => ~15 position
-        # updates/sec, which is plenty since tags barely move between frames.
-        self.RENDER_EVERY = 4
-        self._render_tick = 0
+        # ONE full-frame detector, shared by everything: each station gets the
+        # tags whose centers land in its region, and the UI gets the same tags'
+        # positions. (No more per-station ROI detection.)
+        self.detector = ArucoTagDetector("DICT_4X4_50")
+        # Full-frame detection is expensive, so run it (and the station logic it
+        # drives) every Nth UI tick. At TICK_MS=16 (~60fps), SCAN_EVERY=3 =>
+        # ~20 scans/sec, plenty for time-based scan/grace logic.
+        self.SCAN_EVERY = 3
+        self._scan_tick = 0
 
         # pages
         self.start_page = StartPage(self.start_game)
@@ -126,11 +123,26 @@ class OvercookedIRLApp:
         self.station_feed_relay.update_image()
         self.final_feed_relay.update_image()
 
-        # tag_id -> scan progress (0..1) for whichever tag each station is scanning
+        # Throttle the expensive detection (and the station logic it feeds) so it
+        # doesn't starve the UI event loop. update_image above still runs every
+        # tick so the feed stays fresh.
+        self._scan_tick = (self._scan_tick + 1) % self.SCAN_EVERY
+        if self._scan_tick != 0:
+            return
+
+        frame = self.station_feed_relay.frame
+        if frame is None:
+            return
+
+        # ONE detection pass for the whole table.
+        tags = self._detect_tags(frame)  # [(tag_id, cx, cy), ...] full-frame px
+
+        # Hand each station the tags whose centers fall inside its region.
         scan_progress: dict[int, float] = {}
         statuses: dict[str, dict] = {}
         for station in self.stations:
-            status = station._tick()
+            ids = [tag_id for (tag_id, cx, cy) in tags if station.contains(cx, cy)]
+            status = station._tick(ids)
             statuses[station.type] = status
             target = status.get("target")
             if status.get("state") == Station.SCANNING and target is not None:
@@ -143,26 +155,24 @@ class OvercookedIRLApp:
         if fss["state"] == self.final_station.COMPLETE:
             self.inc_points(10)
 
-        # Draw items where their tags physically are on the table. Throttled:
-        # the full-frame detection only runs every RENDER_EVERY ticks so it
-        # doesn't starve the UI event loop.
-        self._render_tick = (self._render_tick + 1) % self.RENDER_EVERY
-        if self._render_tick == 0:
-            frame = self.station_feed_relay.frame
-            if frame is not None:
-                self.game_page.update_tags(self._build_render_list(frame, scan_progress))
+        # Same detection feeds the on-screen item positions.
+        self.game_page.update_tags(self._build_render_list(tags, scan_progress))
 
-    def _build_render_list(self, frame, scan_progress: dict[int, float]) -> list[dict]:
-        """Map every tag in the full frame to a normalized table position."""
-        corners, ids = self.render_detector.detect(frame)
+    def _detect_tags(self, frame) -> list[tuple[int, float, float]]:
+        """Detect once on the full frame; return (tag_id, center_x, center_y)."""
+        corners, ids = self.detector.detect(frame)
+        tags = []
+        for c, tag_id in zip(corners, ids):
+            pts = c.reshape(-1, 2)
+            tags.append((tag_id, float(pts[:, 0].mean()), float(pts[:, 1].mean())))
+        return tags
+
+    def _build_render_list(self, tags, scan_progress: dict[int, float]) -> list[dict]:
+        """Map detected tags to normalized table positions for the UI."""
         tx, ty, tw, th = TABLE_REGION
 
         render_list = []
-        for c, tag_id in zip(corners, ids):
-            pts = c.reshape(-1, 2)
-            cx = float(pts[:, 0].mean())
-            cy = float(pts[:, 1].mean())
-
+        for tag_id, cx, cy in tags:
             nx = (cx - tx) / tw
             ny = (cy - ty) / th
             # Skip tags detected outside the table region (small slack for edges).

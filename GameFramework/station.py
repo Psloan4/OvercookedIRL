@@ -1,8 +1,4 @@
-import cv2
 import time
-import numpy as np
-from aruco_tag_detector import ArucoTagDetector
-from feed_relay import FeedRelay
 from item import Item, ItemHandler
 
 
@@ -22,11 +18,9 @@ class Station:
     def __init__(
         self,
         x, y, w, h,
-        feed_relay,
         scan_time,
         type,
         item_handler,
-        show_window: bool = False,
         covered=None
     ):
         self.x = x
@@ -34,13 +28,8 @@ class Station:
         self.w = w
         self.h = h
         self.type = type
-        self.feed_relay: FeedRelay = feed_relay
         self.item_handler: ItemHandler = item_handler
-        self.tag_det = ArucoTagDetector("DICT_4X4_50")
         self.scan_time = float(scan_time)
-
-        self.show_window = show_window
-        self.window_name = f"Station {type}"
 
         self.covered = covered
 
@@ -60,50 +49,9 @@ class Station:
         # Optional debug bookkeeping
         self.last_seen_ids: set[int] = set()
 
-        if self.show_window:
-            cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-
-    def _draw_detection_overlay(self, frame_bgr, corners, ids_list, target_tag=None, offset_xy=(0, 0)):
-        out = frame_bgr.copy()
-        ox, oy = offset_xy
-
-        if ids_list:
-            shifted_corners = []
-            for c in corners:
-                c2 = c.copy()
-                c2[:, :, 0] += ox
-                c2[:, :, 1] += oy
-                shifted_corners.append(c2)
-
-            ids_np = np.array(ids_list, dtype=np.int32).reshape(-1, 1)
-            cv2.aruco.drawDetectedMarkers(out, shifted_corners, ids_np)
-
-        cv2.rectangle(out, (self.x, self.y), (self.x + self.w, self.y + self.h), (0, 255, 0), 2)
-
-        cv2.putText(
-            out,
-            f"Station: {self.type}  State: {self.state}  miss={self.miss_count}",
-            (10, 25),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-            cv2.LINE_AA,
-        )
-
-        if target_tag is not None:
-            cv2.putText(
-                out,
-                f"TARGET: {target_tag}",
-                (10, 55),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                (255, 255, 255),
-                2,
-                cv2.LINE_AA,
-            )
-
-        return out
+    def contains(self, px: float, py: float) -> bool:
+        """Is the point (full-frame pixel coords) inside this station's region?"""
+        return self.x <= px < self.x + self.w and self.y <= py < self.y + self.h
 
     def _full_reset(self):
         self.state = self.READY
@@ -115,9 +63,14 @@ class Station:
         self.last_tick_time = None
         self.last_seen_ids.clear()
 
-    def _ensure_item(self, tag: int) -> Item:
+    def _ensure_item(self, tag: int) -> Item | None:
+        # create_item is a no-op for tags that aren't real items (not in IDS),
+        # so it can still be missing afterwards -> return None instead of
+        # crashing on get_item. This is the "nonexistent tag" guard.
         if not self.item_handler.has_item(tag):
             self.item_handler.create_item(tag)
+        if not self.item_handler.has_item(tag):
+            return None
         return self.item_handler.get_item(tag)
 
     def _compute_valid_tags(self, ids: list[int]) -> list[int]:
@@ -131,7 +84,7 @@ class Station:
                 continue
 
             item = self._ensure_item(tag)
-            if item.state == self.type:
+            if item is not None and item.state == self.type:
                 valid.append(tag)
         return valid
 
@@ -150,38 +103,23 @@ class Station:
             return False
 
         item = self._ensure_item(self.target_tag)
-        return item.state == self.type
+        return item is not None and item.state == self.type
 
     def _reset_scan_timer(self):
         self.scan_start_time = None
         self.scan_accum = 0.0
         self.last_tick_time = None
 
-    def _tick(self):
+    def _tick(self, ids: list[int]):
+        """
+        ids: the tag ids whose centers fall inside this station's region this
+        frame, detected once on the full frame by the caller. The station no
+        longer detects on its own ROI crop -- detection is shared.
+        """
         now = time.time()
 
-        # ROI for detection
-        sub_sec = self.feed_relay.get_sub_section(self.x, self.y, self.w, self.h)
-
-        # Detection pass on ROI
-        corners, ids = self.tag_det.detect(sub_sec)  # ids: list[int]
         valid_tags = self._compute_valid_tags(ids)
         self.last_seen_ids = set(ids)
-
-        # Show annotated window
-        if self.show_window:
-            if self.feed_relay.frame is None:
-                raise RuntimeError("FeedRelay has no frame. Call feed_relay.update_image() before _tick().")
-
-            annotated = self._draw_detection_overlay(
-                self.feed_relay.frame,
-                corners,
-                ids,
-                target_tag=self.target_tag,
-                offset_xy=(self.x, self.y),
-            )
-            cv2.imshow(self.window_name, annotated)
-            cv2.waitKey(1)
 
         # -----------------------------
         # TARGET SELECTION POLICY
