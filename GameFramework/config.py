@@ -10,7 +10,7 @@ CAMERA_PORT = 8080
 
 STATION_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/4"
 FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/0"
-GAME_SECONDS = 300 #Set to 5 minutes for testing purposes
+GAME_SECONDS = 120 # in seconds
 TICK_MS = 16  # ~60 FPS UI update
 
 STATION_DEFS = [
