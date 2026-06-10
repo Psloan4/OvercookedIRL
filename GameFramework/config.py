@@ -9,7 +9,7 @@ CAMERA_HOST = "10.55.11.161"   # <-- change to PC-B's IP
 CAMERA_PORT = 8080
 
 STATION_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/4"
-FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/4"
+FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/0"
 GAME_SECONDS = 300 #Set to 5 minutes for testing purposes
 TICK_MS = 16  # ~60 FPS UI update
 
@@ -26,3 +26,8 @@ GRID_PLACEMENT = {
     "2b": (1, 1, 1, 1),
     "3":  (0, 2, 2, 1),
 }
+
+PLAYERS = {0, 1}
+
+
+# hi my name is bryson and i like to eat food and barbecue and i like overcooked even though i dont really play it. but i love overcookedirl even moreeeeeeeee.
