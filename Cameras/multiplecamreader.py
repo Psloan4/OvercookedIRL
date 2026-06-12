@@ -249,8 +249,15 @@ def main():
     else:
         print("Press Crtl+C to quit.")
 
+    start_time = time.time()
+    timeout = 3600  # 1 hour
+
     try:
         while True:
+            if time.time() - start_time >= timeout:
+                print("1-hour time limit reached. Shutting down.")
+                break
+
             dashboard_frames = []
 
             for cam_index in args.cams:
