@@ -13,7 +13,7 @@ from station import Station
 from aruco_tag_detector import ArucoTagDetector
 
 from style import APP_QSS
-from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, GRID_PLACEMENT, TABLE_REGION
+from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, TABLE_REGION
 from ui_components import StartPage, GamePage, EndPage
 
 
@@ -46,7 +46,6 @@ class OvercookedIRLApp:
                     d["scan_time"],
                     d["type"],
                     self.item_handler,
-                    d["covered"],
                 )
             )
         self.final_station = FinalStation(self.final_feed_relay, self.item_handler)
@@ -93,6 +92,14 @@ class OvercookedIRLApp:
     def start_game(self):
         self.points = 0
         self.time_left = GAME_SECONDS
+
+        # Fresh round: drop every item so tags start raw again, and clear any
+        # in-progress scans. Without this, items keep last round's stage.
+        self.item_handler.clear()
+        for station in self.stations:
+            station.reset()
+        self._scan_tick = 0
+
         self.game_page.set_points(self.points)
         self.game_page.set_time_left(self.time_left)
         self.game_page.reset_station_cards()
@@ -121,7 +128,6 @@ class OvercookedIRLApp:
 
     def _tick(self):
         self.station_feed_relay.update_image()
-        self.final_feed_relay.update_image()
 
         # Throttle the expensive detection (and the station logic it feeds) so it
         # doesn't starve the UI event loop. update_image above still runs every
@@ -137,23 +143,28 @@ class OvercookedIRLApp:
         # ONE detection pass for the whole table.
         tags = self._detect_tags(frame)  # [(tag_id, cx, cy), ...] full-frame px
 
-        # Hand each station the tags whose centers fall inside its region.
+        # Make sure every known tag has an Item, so it renders with the correct
+        # stage image even before a station scans it. (No-op for unknown tags.)
+        for tag_id, _cx, _cy in tags:
+            self.item_handler.create_item(tag_id)
+
+        # Hand each station the tags whose centers fall inside its region. Many
+        # items scan at once; merge every station's per-tag progress.
         scan_progress: dict[int, float] = {}
         statuses: dict[str, dict] = {}
         for station in self.stations:
             ids = [tag_id for (tag_id, cx, cy) in tags if station.contains(cx, cy)]
             status = station._tick(ids)
             statuses[station.type] = status
-            target = status.get("target")
-            if status.get("state") == Station.SCANNING and target is not None:
-                scan_progress[target] = status.get("progress")
+            scan_progress.update(status.get("scans", {}))
+            # Auto-score: +10 the moment an item finishes its final stage. The
+            # finished item is left in place (a delivery station is future work).
+            for tag in status.get("completed", []):
+                if self.item_handler.has_item(tag) and self.item_handler.get_item(tag).state == "complete":
+                    self.inc_points(10)
 
-        # Drive the station zones (pills + detected-tag/item-stage info).
+        # Drive the station zones (pills + detected-tag info).
         self.game_page.update_stations(statuses, self.item_handler)
-
-        fss = self.final_station._tick()
-        if fss["state"] == self.final_station.COMPLETE:
-            self.inc_points(10)
 
         # Same detection feeds the on-screen item positions.
         self.game_page.update_tags(self._build_render_list(tags, scan_progress))
@@ -168,7 +179,8 @@ class OvercookedIRLApp:
         return tags
 
     def _build_render_list(self, tags, scan_progress: dict[int, float]) -> list[dict]:
-        """Map detected tags to normalized table positions for the UI."""
+        """Map detected tags to normalized table positions for the UI, with the
+        item's type + stage so the picture reflects progression."""
         tx, ty, tw, th = TABLE_REGION
 
         render_list = []
@@ -179,11 +191,20 @@ class OvercookedIRLApp:
             if nx < -0.05 or nx > 1.05 or ny < -0.05 or ny > 1.05:
                 continue
 
+            item_type = None
+            item_state = None
+            if self.item_handler.has_item(tag_id):
+                item = self.item_handler.get_item(tag_id)
+                item_type = item.type
+                item_state = item.state
+
             render_list.append({
                 "id": tag_id,
                 "nx": min(1.0, max(0.0, nx)),
                 "ny": min(1.0, max(0.0, ny)),
                 "progress": scan_progress.get(tag_id),
+                "type": item_type,
+                "state": item_state,
             })
         return render_list
 

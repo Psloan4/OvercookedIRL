@@ -23,6 +23,9 @@ class ItemHandler:
     def __init__(self):
         self.items = {}
 
+    def clear(self):
+        self.items.clear()
+
     def has_item(self, tag_id) -> bool:
         return tag_id in self.items
     

@@ -55,9 +55,22 @@ TABLE_CM = (117, 62)
 # Bounding box of the table within the camera frame, in pixels: (x, y, w, h).
 TABLE_REGION = (7, 110, 604, 322)
 
-# Tag ID to image filename (in the future, it will be item state mapped to picture)
+# Item image per (type, stage): the picture changes as an item progresses.
 ASSET_MAP = {
-    0: "patty.png",
+    "BURGER": {
+        "1":        "patty.png",          # raw patty
+        "2a":       "grilled_patty.png",
+        "2b":       "cheesy_patty.png",
+        "3":        "burger.png",
+        "complete": "burger_complete.png",
+    },
+    "FRIES": {
+        "2a":       "fries_2a.png",
+        "2b":       "fries_2b.png",
+        "1":        "fries_1.png",
+        "3":        "fries_3.png",
+        "complete": "fries_complete.png",
+    },
 }
 
 # hi my name is bryson and i like to eat food and barbecue and i like overcooked even though i dont really play it. but i love overcookedirl even moreeeeeeeee.

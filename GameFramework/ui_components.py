@@ -1,7 +1,7 @@
 import os
 
 from PySide6.QtWidgets import (
-    QWidget, QLabel, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QWidget, QLabel, QVBoxLayout, QHBoxLayout,
     QProgressBar, QPushButton, QSizePolicy
 )
 from PySide6.QtCore import Qt, QRect
@@ -196,16 +196,17 @@ class StationCard(QWidget):
 # ---------------------------------------------------------------------------
 # Spatial table view: items drawn where their tags physically are
 # ---------------------------------------------------------------------------
-_base_pixmap_cache: dict[int, QPixmap | None] = {}
+_base_pixmap_cache: dict[tuple, QPixmap | None] = {}
 
 
-def _load_base_pixmap(tag_id: int) -> QPixmap | None:
-    """Load (and cache) the full-res image for a tag id, or None if missing."""
-    if tag_id in _base_pixmap_cache:
-        return _base_pixmap_cache[tag_id]
+def _load_base_pixmap(item_type, state) -> QPixmap | None:
+    """Load (and cache) the image for an item's (type, stage), or None if missing."""
+    key = (item_type, state)
+    if key in _base_pixmap_cache:
+        return _base_pixmap_cache[key]
 
     pixmap = None
-    name = ASSET_MAP.get(tag_id)
+    name = ASSET_MAP.get(item_type, {}).get(state) if item_type else None
     if name:
         path = os.path.join(_ASSETS_DIR, name)
         if os.path.exists(path):
@@ -213,7 +214,7 @@ def _load_base_pixmap(tag_id: int) -> QPixmap | None:
             if not loaded.isNull():
                 pixmap = loaded
 
-    _base_pixmap_cache[tag_id] = pixmap  # cache the miss too
+    _base_pixmap_cache[key] = pixmap  # cache the miss too
     return pixmap
 
 
@@ -261,18 +262,22 @@ class TagIcon(QWidget):
         lay.addWidget(self.bar)
 
         self.img_size = 0
+        self._appearance = None  # (item_type, state, size) currently drawn
         # normalized position on the table (0..1), set by TableView
         self.nx = 0.5
         self.ny = 0.5
 
-    def set_size(self, img_size: int):
-        if img_size == self.img_size:
+    def set_appearance(self, item_type, state, img_size: int):
+        """Pick the image from the item's (type, stage); redraw only on change."""
+        key = (item_type, state, img_size)
+        if key == self._appearance:
             return
+        self._appearance = key
         self.img_size = img_size
         self.img.setFixedSize(img_size, img_size)
         self.bar.setFixedWidth(img_size)
 
-        base = _load_base_pixmap(self.tag_id)
+        base = _load_base_pixmap(item_type, state)
         if base is None:
             pm = _make_placeholder(self.tag_id, img_size)
         else:
@@ -346,13 +351,12 @@ class StationZone(QWidget):
             self.style().polish(self)
 
     def update_status(self, status: dict, item_handler):
-        scanning = status.get("state") == Station.SCANNING
-        self._set_scanning(scanning)
+        scans = status.get("scans") or {}
+        self._set_scanning(len(scans) > 0)
 
         lines = []
-        target = status.get("target")
-        if target is not None and item_handler.has_item(target):
-            lines.append(f"Item: {item_handler.get_item(target).state}")
+        if scans:
+            lines.append(f"Scanning: {len(scans)}")
         ids = status.get("ids")
         if ids:
             lines.append(f"Tags: {list(ids)}")
@@ -442,7 +446,7 @@ class TableView(QWidget):
                 self._icons[tid] = icon
                 icon.show()
 
-            icon.set_size(icon_size)
+            icon.set_appearance(entry.get("type"), entry.get("state"), icon_size)
             icon.set_progress(entry.get("progress"))
             icon.nx = entry["nx"]
             icon.ny = entry["ny"]
