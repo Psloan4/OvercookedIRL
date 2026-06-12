@@ -162,7 +162,7 @@ if __name__ == "__main__":
     if args.local:
         print("Running main.py locally...")
         STATION_CAMERA_DEV = args.station
-        FINAL_CAMERA_DEV = args.station
+        FINAL_CAMERA_DEV = args.station -1
     else :
         STATION_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/{args.station}"
         FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/{args.station}"
