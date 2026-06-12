@@ -9,8 +9,8 @@ CAMERA_HOST = "10.55.11.161"   # <-- change to PC-B's IP
 CAMERA_PORT = 8080
 
 STATION_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/4"
-FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/4"
-GAME_SECONDS = 300 #Set to 5 minutes for testing purposes
+FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/0"
+GAME_SECONDS = 120 # in seconds
 TICK_MS = 16  # ~60 FPS UI update
 
 STATION_DEFS = [
@@ -21,8 +21,56 @@ STATION_DEFS = [
 ]
 
 GRID_PLACEMENT = {
-    "1":  (0, 0, 1, 2),  # row, col, colSpan, rowSpan
-    "2a": (1, 0, 1, 1),
+    "1":  (0, 0, 2, 1),  # row, col, colSpan, rowSpan
+    "2a": (0, 1, 1, 1),
     "2b": (1, 1, 1, 1),
-    "3":  (2, 0, 1, 2),
+    "3":  (0, 2, 2, 1),
 }
+
+IDS = { #Currently supports burgers and fries -- soon to add Player
+    0: "BURGER",
+    1: "BURGER",
+    2: "BURGER",
+    3: "FRIES",
+    4: "FRIES",
+}
+
+BURGER = [
+    ["1"], #Raw Patty
+    ["2a", "2b"], #I dunno add cheese or smth
+    ["3"], #cook again for some reason
+    ["complete"]
+]
+
+FRIES = [
+    ["2a","2b"], #Cut into slices
+    ["1","3"], #cook
+    ["complete"]
+]
+
+# --- Spatial table view -----------------------------------------------------
+# Real-world table size (cm). The on-screen table is locked to this aspect ratio.
+TABLE_CM = (117, 62)
+
+# Bounding box of the table within the camera frame, in pixels: (x, y, w, h).
+TABLE_REGION = (7, 110, 604, 322)
+
+# Item image per (type, stage): the picture changes as an item progresses.
+ASSET_MAP = {
+    "BURGER": {
+        "1":        "patty.png",          # raw patty
+        "2a":       "grilled_patty.png",
+        "2b":       "cheesy_patty.png",
+        "3":        "burger.png",
+        "complete": "burger_complete.png",
+    },
+    "FRIES": {
+        "2a":       "fries_2a.png",
+        "2b":       "fries_2b.png",
+        "1":        "fries_1.png",
+        "3":        "fries_3.png",
+        "complete": "fries_complete.png",
+    },
+}
+
+# hi my name is bryson and i like to eat food and barbecue and i like overcooked even though i dont really play it. but i love overcookedirl even moreeeeeeeee.

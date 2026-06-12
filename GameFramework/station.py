@@ -1,8 +1,4 @@
-import cv2
 import time
-import numpy as np
-from aruco_tag_detector import ArucoTagDetector
-from feed_relay import FeedRelay
 from item import Item, ItemHandler
 
 
@@ -10,282 +6,128 @@ class Station:
     READY = "ready"
     SCANNING = "scanning"
 
-    # How long (in seconds) the target can go undetected before we drop it.
-    # Time-based so it behaves the same regardless of loop / frame rate.
-    GRACE_SECONDS = 1.5
+    # How long (in seconds) the target can go undetected before we drop it AND
+    # discard progress. While it's missing but under this window, scanning just
+    # PAUSES (progress is preserved), so a brief dropout doesn't reset the scan.
+    # Generous on purpose: real cameras lose a tag for a moment all the time.
+    GRACE_SECONDS = 2.0
+
+    # Print per-event diagnostics ([SCAN START/FINISH], [TARGET DROP]).
+    DEBUG = True
 
     def __init__(
         self,
         x, y, w, h,
-        feed_relay,
         scan_time,
         type,
         item_handler,
-        show_window: bool = False,
-        covered=None
     ):
         self.x = x
         self.y = y
         self.w = w
         self.h = h
         self.type = type
-        self.feed_relay: FeedRelay = feed_relay
         self.item_handler: ItemHandler = item_handler
-        self.tag_det = ArucoTagDetector("DICT_4X4_50")
         self.scan_time = float(scan_time)
-
-        self.show_window = show_window
-        self.window_name = f"Station {type}"
-
-        self.covered = covered
 
         # State machine
         self.state = self.READY
 
-        # Target tracking
-        self.target_tag: int | None = None
-        self.miss_count = 0
-        self.last_seen_time: float | None = None    # wall time target was last detected
+        # Concurrent scans: many items can scan at once in this station. Each
+        # entry tracks its own accumulated "seen time" so flicker on one item
+        # doesn't affect the others.
+        #   tag -> {"accum": float, "last_seen": float, "last_tick": float}
+        self.scans: dict[int, dict] = {}
 
-        # Scan timing: accumulate "seen time" so flicker doesn't reset scanning
-        self.scan_start_time: float | None = None   # when we entered SCANNING
-        self.scan_accum: float = 0.0                # seconds of confirmed visibility
-        self.last_tick_time: float | None = None    # to compute dt between ticks
+    def contains(self, px: float, py: float) -> bool:
+        """Is the point (full-frame pixel coords) inside this station's region?"""
+        return self.x <= px < self.x + self.w and self.y <= py < self.y + self.h
 
-        # Optional debug bookkeeping
-        self.last_seen_ids: set[int] = set()
-
-        if self.show_window:
-            cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-
-    def _draw_detection_overlay(self, frame_bgr, corners, ids_list, target_tag=None, offset_xy=(0, 0)):
-        out = frame_bgr.copy()
-        ox, oy = offset_xy
-
-        if ids_list:
-            shifted_corners = []
-            for c in corners:
-                c2 = c.copy()
-                c2[:, :, 0] += ox
-                c2[:, :, 1] += oy
-                shifted_corners.append(c2)
-
-            ids_np = np.array(ids_list, dtype=np.int32).reshape(-1, 1)
-            cv2.aruco.drawDetectedMarkers(out, shifted_corners, ids_np)
-
-        cv2.rectangle(out, (self.x, self.y), (self.x + self.w, self.y + self.h), (0, 255, 0), 2)
-
-        cv2.putText(
-            out,
-            f"Station: {self.type}  State: {self.state}  miss={self.miss_count}",
-            (10, 25),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 255, 255),
-            2,
-            cv2.LINE_AA,
-        )
-
-        if target_tag is not None:
-            cv2.putText(
-                out,
-                f"TARGET: {target_tag}",
-                (10, 55),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
-                (255, 255, 255),
-                2,
-                cv2.LINE_AA,
-            )
-
-        return out
-
-    def _full_reset(self):
+    def reset(self):
+        """Clear all in-progress scans (used when a new round starts)."""
         self.state = self.READY
-        self.target_tag = None
-        self.miss_count = 0
-        self.last_seen_time = None
-        self.scan_start_time = None
-        self.scan_accum = 0.0
-        self.last_tick_time = None
-        self.last_seen_ids.clear()
+        self.scans.clear()
 
-    def _ensure_item(self, tag: int) -> Item:
+    def _ensure_item(self, tag: int) -> Item | None:
+        # create_item is a no-op for tags that aren't real items (not in IDS),
+        # so it can still be missing afterwards -> return None instead of
+        # crashing on get_item. This is the "nonexistent tag" guard.
         if not self.item_handler.has_item(tag):
             self.item_handler.create_item(tag)
+        if not self.item_handler.has_item(tag):
+            return None
         return self.item_handler.get_item(tag)
 
-    def _compute_valid_tags(self, ids: list[int]) -> list[int]:
+    def _matches(self, tag: int) -> bool:
+        """Does this tag's item currently need THIS station (state == type)?"""
+        item = self._ensure_item(tag)
+        return item is not None and item.state == self.type
+
+    def _progress(self, accum: float) -> float:
+        return 1.0 if self.scan_time <= 0 else min(accum / self.scan_time, 1.0)
+
+    def _tick(self, ids: list[int]):
         """
-        Valid tags among the *currently detected* ids.
-        (Still useful for choosing the next target.)
+        ids: the tag ids whose centers fall inside this station's region this
+        frame, detected once on the full frame by the caller.
+
+        Every item whose stage matches this station scans concurrently and
+        independently. Returns per-tag progress + the tags that finished a scan
+        this tick.
         """
-        valid = []
+        now = time.time()
+        present_ids = set(ids)
+
+        # Start a scan for any present, matching item we aren't already tracking.
         for tag in ids:
-            if self.covered == tag:
+            if tag in self.scans:
+                continue
+            if self._matches(tag):
+                self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
+                if self.DEBUG:
+                    print(f"[SCAN START] Station={self.type} Tag={tag} scan_time={self.scan_time}")
+
+        completed: list[int] = []
+
+        for tag in list(self.scans.keys()):
+            sc = self.scans[tag]
+
+            # Item advanced (or went invalid) -> this scan is finished/irrelevant.
+            if not self._matches(tag):
+                del self.scans[tag]
                 continue
 
-            item = self._ensure_item(tag)
-            if item.state == self.type:
-                valid.append(tag)
-        return valid
+            present = tag in present_ids
 
-    def _target_should_scan(self, ids: list[int]) -> bool:
-        """
-        Whether the CURRENT target is eligible to be scanned based on game logic.
-        IMPORTANT: This must NOT depend on whether the tag was detected this frame,
-        otherwise flicker will interrupt scanning.
-        """
-        if self.target_tag is None:
-            return False
+            if present:
+                sc["accum"] += now - sc["last_tick"]
+                sc["last_seen"] = now
+                sc["last_tick"] = now
+            else:
+                # Paused: freeze last_tick so the gap isn't counted on resume.
+                sc["last_tick"] = now
+                if (now - sc["last_seen"]) > self.GRACE_SECONDS:
+                    if self.DEBUG:
+                        print(
+                            f"[SCAN DROP] Station={self.type} Tag={tag} gone>{self.GRACE_SECONDS}s "
+                            f"(lost {sc['accum']:.1f}/{self.scan_time}s)"
+                        )
+                    del self.scans[tag]
+                continue
 
-        # Covered logic: if "covered" tag is visible, block scanning
-        tag_covered_ok = (self.covered is None) or (self.covered not in ids)
-        if not tag_covered_ok:
-            return False
+            if self._progress(sc["accum"]) >= 1.0:
+                if self.DEBUG:
+                    print(f"[SCAN FINISH] Station={self.type} Tag={tag} seen_time={sc['accum']:.3f}")
+                self.item_handler.advance_item(tag)
+                completed.append(tag)
+                del self.scans[tag]
 
-        item = self._ensure_item(self.target_tag)
-        return item.state == self.type
+        scans_progress = {tag: self._progress(sc["accum"]) for tag, sc in self.scans.items()}
+        self.state = self.SCANNING if self.scans else self.READY
 
-    def _reset_scan_timer(self):
-        self.scan_start_time = None
-        self.scan_accum = 0.0
-        self.last_tick_time = None
-
-    def _tick(self):
-        now = time.time()
-
-        # ROI for detection
-        sub_sec = self.feed_relay.get_sub_section(self.x, self.y, self.w, self.h)
-
-        # Detection pass on ROI
-        corners, ids = self.tag_det.detect(sub_sec)  # ids: list[int]
-        valid_tags = self._compute_valid_tags(ids)
-        self.last_seen_ids = set(ids)
-
-        # Show annotated window
-        if self.show_window:
-            if self.feed_relay.frame is None:
-                raise RuntimeError("FeedRelay has no frame. Call feed_relay.update_image() before _tick().")
-
-            annotated = self._draw_detection_overlay(
-                self.feed_relay.frame,
-                corners,
-                ids,
-                target_tag=self.target_tag,
-                offset_xy=(self.x, self.y),
-            )
-            cv2.imshow(self.window_name, annotated)
-            cv2.waitKey(1)
-
-        # -----------------------------
-        # TARGET SELECTION POLICY
-        # -----------------------------
-
-        # If we have no target, choose one from what's currently seen
-        if self.target_tag is None:
-            candidates = [t for t in ids if t != self.covered]
-            if not candidates:
-                self.state = self.READY
-                self.miss_count = 0
-                self._reset_scan_timer()
-                return {"state": self.READY, "progress": None, "target": None}
-
-            # Prefer a valid tag if present; else any seen tag
-            preferred = [t for t in candidates if t in valid_tags]
-            self.target_tag = preferred[0] if preferred else candidates[0]
-            self.miss_count = 0
-            self.last_seen_time = now
-            self._reset_scan_timer()
-
-        # We have a target: prioritize it and count misses
-        target_present = (self.target_tag in ids)
-
-        if target_present:
-            self.miss_count = 0
-            self.last_seen_time = now
-        else:
-            self.miss_count += 1
-            if self.last_seen_time is None:
-                self.last_seen_time = now
-
-            # Drop the target only after it's been gone for GRACE_SECONDS of
-            # real time (frame-rate independent), not a fixed frame count.
-            if (now - self.last_seen_time) > self.GRACE_SECONDS:
-                # Drop target after grace timeout and immediately try to pick a new one this frame
-                self.target_tag = None
-                self.miss_count = 0
-                self.last_seen_time = None
-                self._reset_scan_timer()
-
-                candidates = [t for t in ids if t != self.covered]
-                if not candidates:
-                    self.state = self.READY
-                    return {"state": self.READY, "progress": None, "target": None}
-
-                preferred = [t for t in candidates if t in valid_tags]
-                self.target_tag = preferred[0] if preferred else candidates[0]
-                self.last_seen_time = now
-                self.state = self.READY
-                return {"state": self.READY, "progress": None, "target": self.target_tag}
-
-        # -----------------------------
-        # SCANNING LOGIC (flicker-safe)
-        # -----------------------------
-
-        # If game logic says we shouldn't scan this target, stay READY but keep
-        # the target (grace still applies). PAUSE progress instead of wiping it:
-        # a one-frame glitch (covered tag flickers in, item state hiccups) must
-        # not throw away seconds of accumulated scanning. We freeze last_tick_time
-        # so the paused interval isn't counted when scanning resumes.
-        if not self._target_should_scan(ids):
-            self.state = self.READY
-            self.last_tick_time = now
-            return {"state": self.READY, "progress": None, "target": self.target_tag}
-
-        # Valid target: scanning. Do NOT reset scan timer on brief misses.
-        self.state = self.SCANNING
-        if self.scan_start_time is None:
-            self.scan_start_time = now
-            self.scan_accum = 0.0
-            self.last_tick_time = now
-            print(
-                f"[SCAN START] Station={self.type} "
-                f"Tag={self.target_tag} "
-                f"t={self.scan_start_time:.3f} "
-                f"scan_time={self.scan_time}"
-            )
-
-        dt = 0.0 if self.last_tick_time is None else (now - self.last_tick_time)
-        self.last_tick_time = now
-
-        # Accumulate scan time ONLY while the tag is actually present
-        #if target_present:
-        self.scan_accum += dt
-
-        progress = 1.0 if self.scan_time <= 0 else min(self.scan_accum / self.scan_time, 1.0)
-
-        # Only finish if we've accumulated enough "seen time" AND it's present right now
-        if progress >= 1.0 and target_present:
-            print(
-                f"[SCAN FINISH] Station={self.type} "
-                f"Tag={self.target_tag} "
-                f"seen_time={self.scan_accum:.3f}"
-            )
-
-            self.item_handler.advance_item(self.target_tag)
-
-            finished_tag = self.target_tag
-            self.state = self.READY
-            self.target_tag = None
-            self.miss_count = 0
-            self._reset_scan_timer()
-
-            return {
-                "state": self.READY,
-                "progress": None,
-                "target": None,
-                "completed": finished_tag,
-            }
-
-        return {"state": self.SCANNING, "progress": progress, "target": self.target_tag}
+        return {
+            "state": self.state,
+            "scans": scans_progress,   # tag -> 0..1 for every active scan
+            "completed": completed,    # tags that finished a scan this tick
+            "ids": ids,
+        }
