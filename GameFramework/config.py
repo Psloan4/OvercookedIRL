@@ -75,8 +75,8 @@ ASSET_MAP = {
         "complete": "burger_complete.png",
     },
     "FRIES": {
-        "2a":       "fries_2a.png",
-        "2b":       "fries_2b.png",
+        "2a":       "raw_potato.png",
+        "2b":       "raw_potato.png",
         "1":        "fries_1.png",
         "3":        "fries_3.png",
         "complete": "fries_complete.png",

@@ -54,13 +54,9 @@ class OvercookedIRLApp:
             FINAL_STATION_DEF,
         )
 
-        # ONE full-frame detector, shared by everything: each station gets the
-        # tags whose centers land in its region, and the UI gets the same tags'
-        # positions. (No more per-station ROI detection.)
+
         self.detector = ArucoTagDetector("DICT_4X4_50")
-        # Full-frame detection is expensive, so run it (and the station logic it
-        # drives) every Nth UI tick. At TICK_MS=16 (~60fps), SCAN_EVERY=3 =>
-        # ~20 scans/sec, plenty for time-based scan/grace logic.
+
         self.SCAN_EVERY = 3
         self._scan_tick = 0
 
@@ -97,8 +93,7 @@ class OvercookedIRLApp:
         self.points = 0
         self.time_left = GAME_SECONDS
 
-        # Fresh round: drop every item so tags start raw again, and clear any
-        # in-progress scans. Without this, items keep last round's stage.
+        # drop every item so tags start raw again
         self.item_handler.clear()
         for station in self.stations:
             station.reset()
@@ -138,9 +133,7 @@ class OvercookedIRLApp:
         except RuntimeError:
             pass
 
-        # Throttle the expensive detection (and the station logic it feeds) so it
-        # doesn't starve the UI event loop. update_image above still runs every
-        # tick so the feed stays fresh.
+        # Throttles detection and it's station logic
         self._scan_tick = (self._scan_tick + 1) % self.SCAN_EVERY
         if self._scan_tick != 0:
             return
@@ -149,11 +142,9 @@ class OvercookedIRLApp:
         if frame is None:
             return
 
-        # ONE detection pass for the whole table.
         tags = self._detect_tags(frame)  # [(tag_id, cx, cy), ...] full-frame px
 
-        # Make sure every known tag has an Item, so it renders with the correct
-        # stage image even before a station scans it. (No-op for unknown tags.)
+        # Ensures items
         for tag_id, _cx, _cy in tags:
             self.item_handler.create_item(tag_id)
 
@@ -219,8 +210,6 @@ class OvercookedIRLApp:
     def run(self):
         self.stack.setMinimumSize(520, 420)
         self.stack.resize(820, 560)
-        # The UI (and the table view) is sized for a large table-top display;
-        # open maximized so there's room for the table and the station cards.
         self.stack.showMaximized()
 
 

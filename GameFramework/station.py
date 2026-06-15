@@ -6,10 +6,6 @@ class Station:
     READY = "ready"
     SCANNING = "scanning"
 
-    # How long (in seconds) the target can go undetected before we drop it AND
-    # discard progress. While it's missing but under this window, scanning just
-    # PAUSES (progress is preserved), so a brief dropout doesn't reset the scan.
-    # Generous on purpose: real cameras lose a tag for a moment all the time.
     GRACE_SECONDS = 2.0
 
     # Print per-event diagnostics ([SCAN START/FINISH], [TARGET DROP]).
@@ -33,9 +29,6 @@ class Station:
         # State machine
         self.state = self.READY
 
-        # Concurrent scans: many items can scan at once in this station. Each
-        # entry tracks its own accumulated "seen time" so flicker on one item
-        # doesn't affect the others.
         #   tag -> {"accum": float, "last_seen": float, "last_tick": float}
         self.scans: dict[int, dict] = {}
 
@@ -49,9 +42,7 @@ class Station:
         self.scans.clear()
 
     def _ensure_item(self, tag: int) -> Item | None:
-        # create_item is a no-op for tags that aren't real items (not in IDS),
-        # so it can still be missing afterwards -> return None instead of
-        # crashing on get_item. This is the "nonexistent tag" guard.
+        # This is the "nonexistent tag" guard.
         if not self.item_handler.has_item(tag):
             self.item_handler.create_item(tag)
         if not self.item_handler.has_item(tag):
