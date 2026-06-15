@@ -13,7 +13,7 @@ from station import Station
 from aruco_tag_detector import ArucoTagDetector
 
 from style import APP_QSS
-from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, TABLE_REGION
+from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, FINAL_STATION_DEF, TABLE_REGION
 from ui_components import StartPage, GamePage, EndPage
 
 
@@ -48,7 +48,11 @@ class OvercookedIRLApp:
                     self.item_handler,
                 )
             )
-        self.final_station = FinalStation(self.final_feed_relay, self.item_handler)
+        self.final_station = FinalStation(
+            self.final_feed_relay,
+            self.item_handler,
+            FINAL_STATION_DEF,
+        )
 
         # ONE full-frame detector, shared by everything: each station gets the
         # tags whose centers land in its region, and the UI gets the same tags'
@@ -98,6 +102,7 @@ class OvercookedIRLApp:
         self.item_handler.clear()
         for station in self.stations:
             station.reset()
+        self.final_station.reset()
         self._scan_tick = 0
 
         self.game_page.set_points(self.points)
@@ -128,6 +133,10 @@ class OvercookedIRLApp:
 
     def _tick(self):
         self.station_feed_relay.update_image()
+        try:
+            self.final_feed_relay.update_image()
+        except RuntimeError:
+            pass
 
         # Throttle the expensive detection (and the station logic it feeds) so it
         # doesn't starve the UI event loop. update_image above still runs every
@@ -157,11 +166,10 @@ class OvercookedIRLApp:
             status = station._tick(ids)
             statuses[station.type] = status
             scan_progress.update(status.get("scans", {}))
-            # Auto-score: +10 the moment an item finishes its final stage. The
-            # finished item is left in place (a delivery station is future work).
-            for tag in status.get("completed", []):
-                if self.item_handler.has_item(tag) and self.item_handler.get_item(tag).state == "complete":
-                    self.inc_points(10)
+
+        final_status = self.final_station._tick()
+        for tag in final_status.get("delivered", []):
+            self.inc_points(10)
 
         # Drive the station zones (pills + detected-tag info).
         self.game_page.update_stations(statuses, self.item_handler)
