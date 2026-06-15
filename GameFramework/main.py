@@ -218,43 +218,6 @@ class OvercookedIRLApp:
 
 if __name__ == "__main__":
 
-    # #Arguments
-    ap = argparse.ArgumentParser()
-    ap.add_argument(
-        "--station",
-        type = int,
-        default = 4,
-        help = "Index of camera used for station detection (Default = 4)"
-    )
-    ap.add_argument(
-        "--host",
-        type = str,
-        help = "IP of host device streaming camera feeds"
-    )
-    ap.add_argument(
-        "--port",
-        type = int,
-        help = "Port of host device streaming camera feeds"
-    )
-    ap.add_argument(
-        "--local",
-        action = "store_true",
-        help = "Configures main to run using local cameras instead of streaming"
-    )
-    args = ap.parse_args()
-
-    if not args.host is None:
-        CAMERA_HOST = args.host
-    if not args.port is None:
-        CAMERA_PORT = args.port
-    if args.local:
-        print("Running main.py locally...")
-        STATION_CAMERA_DEV = args.station
-        FINAL_CAMERA_DEV = args.station -1
-    else :
-        STATION_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/{args.station}"
-        FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/{args.station}"
-
     app = QApplication()
     app.setStyleSheet(APP_QSS)
     ui = OvercookedIRLApp()
