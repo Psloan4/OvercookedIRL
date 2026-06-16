@@ -250,7 +250,7 @@ def main():
         print("Press Crtl+C to quit.")
 
     start_time = time.time()
-    timeout = 3600  # 1 hour
+    timeout = 3600  * 3 # 1 hour * 3
 
     try:
         while True:
