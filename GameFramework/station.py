@@ -52,7 +52,7 @@ class Station:
     def _matches(self, tag: int) -> bool:
         """Does this tag's item currently need THIS station (state == type)?"""
         item = self._ensure_item(tag)
-        return item is not None and item.state == self.type
+        return item is not None and item.state in self.type
 
     def _progress(self, accum: float) -> float:
         return 1.0 if self.scan_time <= 0 else min(accum / self.scan_time, 1.0)

@@ -14,10 +14,10 @@ GAME_SECONDS = 300 # in seconds
 TICK_MS = 16  # ~60 FPS UI update
 
 STATION_DEFS = [
-    dict(x=7, y=110, w=155, h=322, scan_time=12, type="1",  show_window=True, covered=None),
-    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6, type="2a", show_window=True, covered=50),
-    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6, type="2b", show_window=True, covered=150),
-    dict(x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12, type="3",  show_window=True, covered=None),
+    dict(x=7, y=110, w=155, h=322, scan_time=12, type=tuple(["1"]),  show_window=True, covered=None),
+    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6, type=tuple(["2a"]), show_window=True, covered=50),
+    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6, type= tuple(["2b","2a"]), show_window=True, covered=150),
+    dict(x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12, type=tuple(["3"]),  show_window=True, covered=None),
 ]
 
 FINAL_STATION_DEF = dict(
@@ -41,8 +41,14 @@ IDS = { #Currently supports burgers and fries -- soon to add Player
     0: "BURGER",
     1: "BURGER",
     2: "BURGER",
-    3: "FRIES",
-    4: "FRIES",
+    3: "BURGER",
+    4: "BURGER",
+    5: "BURGER",
+    6: "BURGER",
+    7: "FRIES",
+    8: "FRIES",
+    9: "FRIES",
+    10: "FRIES",
     17: "THE GHOST" #sometimes the camera hallucinates tag 17
 }
 
