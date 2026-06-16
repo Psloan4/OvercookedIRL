@@ -80,6 +80,7 @@ ASSET_MAP = {
         "2b":       "cheesy_patty.png",
         "3":        "burger.png",
         "complete": "burger_complete.png",
+        "burnt": "lord_crandy_bw.png"
     },
     "FRIES": {
         "2a":       "potato.png",
@@ -87,6 +88,7 @@ ASSET_MAP = {
         "1":        "raw_fries.png",
         "3":        "raw_fries.png",
         "complete": "finished_fries.png",
+        "burnt": "lord_crandy_bw.png"
     },
 }
 

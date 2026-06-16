@@ -18,6 +18,10 @@ class Item:
     def advance_state(self):
         self.state = random.choice(self.future_states.pop(0))
 
+    def burn(self):
+        self.state = "burnt"
+        self.future_states = []
+        
 class ItemHandler:
 
     def __init__(self):
@@ -45,3 +49,8 @@ class ItemHandler:
         if self.has_item(tag_id):
             item = self.get_item(tag_id)
             item.advance_state()
+
+    def burn_item(self, tag_id):
+        if self.has_item(tag_id):
+            item = self.get_item(tag_id)
+            item.burn()
