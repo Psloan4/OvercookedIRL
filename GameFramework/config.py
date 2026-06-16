@@ -43,6 +43,7 @@ IDS = { #Currently supports burgers and fries -- soon to add Player
     2: "BURGER",
     3: "FRIES",
     4: "FRIES",
+    17: "THE GHOST" #sometimes the camera hallucinates tag 17
 }
 
 BURGER = [
@@ -75,11 +76,11 @@ ASSET_MAP = {
         "complete": "burger_complete.png",
     },
     "FRIES": {
-        "2a":       "raw_potato.png",
-        "2b":       "raw_potato.png",
-        "1":        "fries_1.png",
-        "3":        "fries_3.png",
-        "complete": "fries_complete.png",
+        "2a":       "potato.png",
+        "2b":       "potato.png",
+        "1":        "raw_fries.png",
+        "3":        "raw_fries.png",
+        "complete": "finished_fries.png",
     },
 }
 

@@ -249,6 +249,7 @@ class TagIcon(QWidget):
         lay.setSpacing(3)
 
         self.img = QLabel()
+        self.img.setStyleSheet("background-color: rgba(255, 0, 0, 0)")
         self.img.setAlignment(Qt.AlignCenter)
 
         self.bar = QProgressBar()
