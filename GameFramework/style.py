@@ -99,6 +99,11 @@ QWidget#StationZone[scan="true"] {
     background: rgba(37, 99, 235, 0.14);
     border: 1px solid #93c5fd;
 }
+/* Brief red flash when a scan is wiped because the player left the zone. */
+QWidget#StationZone[reset_flash="true"] {
+    background: rgba(220, 38, 38, 0.18);
+    border: 2px solid #dc2626;
+}
 QLabel#ZoneName {
     font-size: 44px;
     font-weight: 900;
@@ -130,6 +135,21 @@ QLabel#PillScan {
     border-radius: 999px;
     font-size: 30px;
     font-weight: 900;
+}
+/* Gated station (2a/2b) with no player standing beside it. */
+QLabel#PillNoPlayer {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fcd34d;
+    padding: 8px 22px;
+    border-radius: 999px;
+    font-size: 30px;
+    font-weight: 900;
+}
+QLabel#PlayerGlyph {
+    font-size: 40px;
+    background: transparent;
+    border: none;
 }
 
 /* Thin per-item scan bar that sits under each patty on the table. */

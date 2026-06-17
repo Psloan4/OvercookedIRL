@@ -17,6 +17,7 @@ class Station:
         scan_time,
         type,
         item_handler,
+        player_zone=None,
     ):
         self.x = x
         self.y = y
@@ -25,6 +26,10 @@ class Station:
         self.type = type
         self.item_handler: ItemHandler = item_handler
         self.scan_time = float(scan_time)
+
+        # Key into PLAYER_ZONES/PLAYER_CAMS, or None if this station never
+        # requires a player to be standing beside it.
+        self.player_zone = player_zone
 
         # State machine
         self.state = self.READY
@@ -57,16 +62,43 @@ class Station:
     def _progress(self, accum: float) -> float:
         return 1.0 if self.scan_time <= 0 else min(accum / self.scan_time, 1.0)
 
-    def _tick(self, ids: list[int]):
+    def _tick(self, ids: list[int], player_present: bool = True):
         """
         ids: the tag ids whose centers fall inside this station's region this
         frame, detected once on the full frame by the caller.
+
+        player_present: whether a player is standing beside this station this
+        frame. Stations that don't require a player leave it True. When it's
+        False, every in-progress scan resets to zero immediately -- the player
+        must commit to standing in the zone for the whole scan.
 
         Every item whose stage matches this station scans concurrently and
         independently. Returns per-tag progress + the tags that finished a scan
         this tick.
         """
         now = time.time()
+
+        # No player beside the station -> wipe all progress. Scans restart from
+        # zero when the player returns and the item is still present.
+        if not player_present:
+            wiped = bool(self.scans)
+            if self.DEBUG and wiped:
+                print(f"[SCAN RESET] Station={self.type} player left zone "
+                      f"(dropped {len(self.scans)} scan(s))")
+            self.scans.clear()
+            self.state = self.READY
+            return {
+                "state": self.state,
+                "scans": {},
+                "completed": [],
+                "ids": ids,
+                "gated": self.player_zone is not None,
+                "player_present": False,
+                # True only on the tick a scan was actually lost to the player
+                # leaving -- the UI uses this to flash the zone red.
+                "reset_by_player": wiped,
+            }
+
         present_ids = set(ids)
 
         # Start a scan for any present, matching item we aren't already tracking.
@@ -121,4 +153,7 @@ class Station:
             "scans": scans_progress,   # tag -> 0..1 for every active scan
             "completed": completed,    # tags that finished a scan this tick
             "ids": ids,
+            "gated": self.player_zone is not None,
+            "player_present": True,    # reached here only when present
+            "reset_by_player": False,
         }

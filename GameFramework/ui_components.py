@@ -2,9 +2,9 @@ import os
 
 from PySide6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QHBoxLayout,
-    QProgressBar, QPushButton, QSizePolicy
+    QProgressBar, QPushButton, QSizePolicy, QGraphicsOpacityEffect
 )
-from PySide6.QtCore import Qt, QRect
+from PySide6.QtCore import Qt, QRect, QTimer
 from PySide6.QtGui import QPainter, QPixmap, QColor, QFont, QBrush, QPen
 
 from station import Station
@@ -319,12 +319,22 @@ class StationZone(QWidget):
         self.name = QLabel(f"Station {station_type}")
         self.name.setObjectName("ZoneName")
 
+        # Player-presence glyph for gated stations (2a/2b). Hidden for stations
+        # that don't require a player; dimmed when the player has stepped away.
+        self.player_glyph = QLabel("\N{STANDING PERSON}")
+        self.player_glyph.setObjectName("PlayerGlyph")
+        self.player_glyph.setAlignment(Qt.AlignCenter)
+        self._glyph_opacity = QGraphicsOpacityEffect(self.player_glyph)
+        self.player_glyph.setGraphicsEffect(self._glyph_opacity)
+        self.player_glyph.hide()
+
         self.pill = QLabel("READY")
         self.pill.setObjectName("PillReady")
         self.pill.setAlignment(Qt.AlignCenter)
 
         top.addWidget(self.name)
         top.addStretch(1)
+        top.addWidget(self.player_glyph)
         top.addWidget(self.pill)
 
         # corner info (detected tags + item stage) pinned to the bottom-left
@@ -339,21 +349,56 @@ class StationZone(QWidget):
 
         self.normalized_rect = (0.0, 0.0, 1.0, 1.0)  # set by TableView
 
-    def _set_scanning(self, scanning: bool):
-        new_obj = "PillScan" if scanning else "PillReady"
+    def _set_pill(self, scanning: bool, gated: bool, present: bool):
+        # "STEP IN" takes priority: a gated station with no player can't scan.
+        if gated and not present:
+            new_obj, text = "PillNoPlayer", "STEP IN"
+        elif scanning:
+            new_obj, text = "PillScan", "SCANNING"
+        else:
+            new_obj, text = "PillReady", "READY"
+
         if self.pill.objectName() != new_obj:
             self.pill.setObjectName(new_obj)
-            self.pill.setText("SCANNING" if scanning else "READY")
+            self.pill.setText(text)
             self.pill.style().unpolish(self.pill)
             self.pill.style().polish(self.pill)
+
         if self.property("scan") != scanning:
             self.setProperty("scan", scanning)
             self.style().unpolish(self)
             self.style().polish(self)
 
+    def _set_player_glyph(self, gated: bool, present: bool):
+        if not gated:
+            self.player_glyph.hide()
+            return
+        self.player_glyph.show()
+        # Solid when a player is standing here; faded when they've stepped away.
+        self._glyph_opacity.setOpacity(1.0 if present else 0.25)
+
+    def _flash_reset(self):
+        """Briefly outline the zone red to show a scan was lost to leaving."""
+        self.setProperty("reset_flash", True)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        QTimer.singleShot(600, self._clear_reset_flash)
+
+    def _clear_reset_flash(self):
+        self.setProperty("reset_flash", False)
+        self.style().unpolish(self)
+        self.style().polish(self)
+
     def update_status(self, status: dict, item_handler):
         scans = status.get("scans") or {}
-        self._set_scanning(len(scans) > 0)
+        gated = status.get("gated", False)
+        present = status.get("player_present", True)
+
+        self._set_pill(len(scans) > 0, gated, present)
+        self._set_player_glyph(gated, present)
+
+        if status.get("reset_by_player"):
+            self._flash_reset()
 
         lines = []
         if scans:
@@ -364,7 +409,9 @@ class StationZone(QWidget):
         self.info.setText("\n".join(lines))
 
     def reset(self):
-        self._set_scanning(False)
+        self._set_pill(False, False, True)
+        self._clear_reset_flash()
+        self.player_glyph.hide()
         self.info.setText("")
 
 

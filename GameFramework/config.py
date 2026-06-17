@@ -13,10 +13,27 @@ FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/1"
 GAME_SECONDS = 300 # in seconds
 TICK_MS = 16  # ~60 FPS UI update
 
+# --- Player presence --------------------------------------------------------
+# Stations 2a and 2b only scan while a player is standing beside them. Each
+# player wears an ArUco tag (4x4_50) on their head; if any of these tags is
+# detected inside the station's zone on its dedicated camera, a player counts
+# as present and the scan may progress. Stepping out of the zone resets the
+# in-progress scan to zero.
+PLAYER_TAG_IDS = {11, 12}   # head tags, one per player (kept clear of food ids 0-10)
+
+PLAYER_CAMS = {
+    "2a": f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/4",
+    "2b": f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/2",
+}
+PLAYER_ZONES = {
+    "2a": dict(x=2, y=0,  w=632, h=421),   # camera 4
+    "2b": dict(x=1, y=31, w=636, h=395),   # camera 2
+}
+
 STATION_DEFS = [
     dict(x=7, y=110, w=155, h=322, scan_time=12, type=tuple(["1"]),  show_window=True, covered=None),
-    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6, type=tuple(["2a"]), show_window=True, covered=50),
-    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6, type= tuple(["2b","2a"]), show_window=True, covered=150),
+    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6, type=tuple(["2a"]), show_window=True, covered=50, player_zone="2a"),
+    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6, type= tuple(["2b","2a"]), show_window=True, covered=150, player_zone="2b"),
     dict(x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12, type=tuple(["3"]),  show_window=True, covered=None),
 ]
 
@@ -49,6 +66,8 @@ IDS = { #Currently supports burgers and fries -- soon to add Player
     8: "FRIES",
     9: "FRIES",
     10: "FRIES",
+    11: "PLAYER",  # head tag, player 1
+    12: "PLAYER",  # head tag, player 2
     17: "THE GHOST" #sometimes the camera hallucinates tag 17
 }
 

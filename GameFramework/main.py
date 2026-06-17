@@ -13,7 +13,7 @@ from station import Station
 from aruco_tag_detector import ArucoTagDetector
 
 from style import APP_QSS
-from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, FINAL_STATION_DEF, TABLE_REGION
+from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, FINAL_STATION_DEF, TABLE_REGION, PLAYER_CAMS, PLAYER_ZONES, PLAYER_TAG_IDS
 from ui_components import StartPage, GamePage, EndPage
 
 
@@ -28,16 +28,23 @@ class OvercookedIRLApp:
         self.stack = QStackedWidget()
         self.stack.setWindowTitle("OvercookedIRL")
 
-        # game state
         self.points = 0
         self.time_left = GAME_SECONDS
 
-        # services
         self.station_feed_relay = FeedRelay(STATION_CAMERA_DEV)
         self.final_feed_relay = FeedRelay(FINAL_CAMERA_DEV)
         self.item_handler = ItemHandler()
 
-        # stations (pure logic objects)
+        # One presence camera per gated station. If a feed won't open, that
+        # zone falls back to "always present" so a bad camera can't brick play.
+        self.player_feeds: dict[str, FeedRelay] = {}
+        for zone_key, url in PLAYER_CAMS.items():
+            try:
+                self.player_feeds[zone_key] = FeedRelay(url)
+            except RuntimeError as e:
+                print(f"[WARN] Player camera for zone '{zone_key}' unavailable "
+                      f"({e}); treating it as always-present.")
+
         self.stations: list[Station] = []
         for d in STATION_DEFS:
             self.stations.append(
@@ -46,6 +53,7 @@ class OvercookedIRLApp:
                     d["scan_time"],
                     d["type"],
                     self.item_handler,
+                    player_zone=d.get("player_zone"),
                 )
             )
         self.final_station = FinalStation(
@@ -54,13 +62,11 @@ class OvercookedIRLApp:
             FINAL_STATION_DEF,
         )
 
-
         self.detector = ArucoTagDetector("DICT_4X4_50")
 
         self.SCAN_EVERY = 3
         self._scan_tick = 0
 
-        # pages
         self.start_page = StartPage(self.start_game)
         self.game_page = GamePage()
         self.end_page = EndPage(self.go_to_start)
@@ -70,30 +76,25 @@ class OvercookedIRLApp:
         self.stack.addWidget(self.end_page)
         self.stack.setCurrentWidget(self.start_page)
 
-        # timers
         self.tick_timer = QTimer(self.stack)
         self.tick_timer.timeout.connect(self._tick)
 
         self.countdown_timer = QTimer(self.stack)
         self.countdown_timer.timeout.connect(self._countdown_tick)
 
-        # initial HUD render
         self.game_page.set_points(self.points)
         self.game_page.set_time_left(self.time_left)
 
-    # ---- scoring ----
     def inc_points(self, inc: int):
         self.points += inc
         self.game_page.set_points(self.points)
 
         INC_POINTS_SOUND.play()
 
-    # ---- flow ----
     def start_game(self):
         self.points = 0
         self.time_left = GAME_SECONDS
 
-        # drop every item so tags start raw again
         self.item_handler.clear()
         for station in self.stations:
             station.reset()
@@ -119,7 +120,6 @@ class OvercookedIRLApp:
         self.countdown_timer.stop()
         self.stack.setCurrentWidget(self.start_page)
 
-    # ---- timers ----
     def _countdown_tick(self):
         self.time_left -= 1
         self.game_page.set_time_left(self.time_left)
@@ -132,8 +132,13 @@ class OvercookedIRLApp:
             self.final_feed_relay.update_image()
         except RuntimeError:
             pass
+        for feed in self.player_feeds.values():
+            try:
+                feed.update_image()
+            except RuntimeError:
+                pass
 
-        # Throttles detection and it's station logic
+        # Only run detection every SCAN_EVERY ticks.
         self._scan_tick = (self._scan_tick + 1) % self.SCAN_EVERY
         if self._scan_tick != 0:
             return
@@ -142,19 +147,19 @@ class OvercookedIRLApp:
         if frame is None:
             return
 
-        tags = self._detect_tags(frame)  # [(tag_id, cx, cy), ...] full-frame px
+        tags = self._detect_tags(frame)
 
-        # Ensures items
         for tag_id, _cx, _cy in tags:
             self.item_handler.create_item(tag_id)
 
-        # Hand each station the tags whose centers fall inside its region. Many
-        # items scan at once; merge every station's per-tag progress.
+        player_present = self._detect_player_presence()
+
         scan_progress: dict[int, float] = {}
         statuses: dict[str, dict] = {}
         for station in self.stations:
             ids = [tag_id for (tag_id, cx, cy) in tags if station.contains(cx, cy)]
-            status = station._tick(ids)
+            present = player_present.get(station.player_zone, True)
+            status = station._tick(ids, present)
             statuses[station.type] = status
             scan_progress.update(status.get("scans", {}))
 
@@ -162,14 +167,11 @@ class OvercookedIRLApp:
         for tag in final_status.get("delivered", []):
             self.inc_points(10)
 
-        # Drive the station zones (pills + detected-tag info).
         self.game_page.update_stations(statuses, self.item_handler)
-
-        # Same detection feeds the on-screen item positions.
         self.game_page.update_tags(self._build_render_list(tags, scan_progress))
 
     def _detect_tags(self, frame) -> list[tuple[int, float, float]]:
-        """Detect once on the full frame; return (tag_id, center_x, center_y)."""
+        """Return (tag_id, center_x, center_y) for every tag in the frame."""
         corners, ids = self.detector.detect(frame)
         tags = []
         for c, tag_id in zip(corners, ids):
@@ -177,16 +179,35 @@ class OvercookedIRLApp:
             tags.append((tag_id, float(pts[:, 0].mean()), float(pts[:, 1].mean())))
         return tags
 
+    @staticmethod
+    def _in_zone(px: float, py: float, zone: dict) -> bool:
+        return (zone["x"] <= px < zone["x"] + zone["w"]
+                and zone["y"] <= py < zone["y"] + zone["h"])
+
+    def _detect_player_presence(self) -> dict[str, bool]:
+        """Per gated zone, is a player head-tag inside it? Fail-open if no frame yet."""
+        present: dict[str, bool] = {}
+        for zone_key, feed in self.player_feeds.items():
+            frame = feed.frame
+            zone = PLAYER_ZONES.get(zone_key)
+            if frame is None or zone is None:
+                present[zone_key] = True
+                continue
+            tags = self._detect_tags(frame)
+            present[zone_key] = any(
+                tag_id in PLAYER_TAG_IDS and self._in_zone(cx, cy, zone)
+                for tag_id, cx, cy in tags
+            )
+        return present
+
     def _build_render_list(self, tags, scan_progress: dict[int, float]) -> list[dict]:
-        """Map detected tags to normalized table positions for the UI, with the
-        item's type + stage so the picture reflects progression."""
+        """Map detected tags to normalized table positions (+ type/stage) for the UI."""
         tx, ty, tw, th = TABLE_REGION
 
         render_list = []
         for tag_id, cx, cy in tags:
             nx = (cx - tx) / tw
             ny = (cy - ty) / th
-            # Skip tags detected outside the table region (small slack for edges).
             if nx < -0.05 or nx > 1.05 or ny < -0.05 or ny > 1.05:
                 continue
 
