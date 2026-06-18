@@ -13,7 +13,7 @@ from station import Station
 from aruco_tag_detector import ArucoTagDetector
 
 from style import APP_QSS
-from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, FINAL_STATION_DEF, TABLE_REGION, PLAYER_CAMS, PLAYER_ZONES, PLAYER_TAG_IDS
+from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, FINAL_STATION_DEF, TABLE_REGION, PLAYER_CAMS, PLAYER_ZONES, PLAYER_TAG_IDS, STAGE_COLORS
 from ui_components import StartPage, GamePage, EndPage
 
 
@@ -226,6 +226,7 @@ class OvercookedIRLApp:
                 "progress": scan_progress.get(tag_id),
                 "type": item_type,
                 "state": item_state,
+                "color": STAGE_COLORS.get(item_state),
             })
         return render_list
 

@@ -30,29 +30,57 @@ PLAYER_ZONES = {
     "2b": dict(x=1, y=31, w=636, h=395),   # camera 2
 }
 
+# --- Destination colours (UI guidance) --------------------------------------
+# Each station has a signature colour. An item is tinted with the colour of the
+# station it should go to NEXT, so players can match item -> zone by colour.
+STATION_COLORS = {
+    "1":  "#ef4444",   # Cooking   (red)
+    "2a": "#3b82f6",   # Slicing   (blue)
+    "2b": "#22c55e",   # Combining (green)
+    "3":  "#facc15",   # Plating   (yellow)
+    "4":  "rainbow",   # Delivery  (rainbow ring; no on-table zone to tint)
+}
+
+# Item stage -> the station it should be taken to next.
+STAGE_DESTINATION = {
+    "raw_patty":       "1",   # cook
+    "sliced_fries":    "1",   # cook
+    "raw_potato":      "2a",  # slice
+    "cheese_patty":    "2b",  # combine
+    "assembled_patty": "3",   # plate
+    "cooked_fries":    "3",   # plate
+    "cooked_patty":    "4",   # overcooked -> delivery resets it
+    "complete":        "4",   # deliver
+}
+
+# Item stage -> colour of its destination station (used to tint item rings).
+STAGE_COLORS = {
+    stage: STATION_COLORS[dest] for stage, dest in STAGE_DESTINATION.items()
+}
+
 STATION_DEFS = [
     #Station 1: Cooking
-    dict(x=7, y=110, w=155, h=322, scan_time=12, 
-         type=tuple(["raw_patty", "cooked_patty", "cheese_patty", "sliced_fries", "cooked_fries"]), 
+    dict(x=7, y=110, w=155, h=322, scan_time=12,
+         type=tuple(["raw_patty", "cooked_patty", "cheese_patty", "sliced_fries", "cooked_fries"]),
          burn_type=tuple(["cooked_patty", "cheese_patty", "cooked_fries"]),
-         show_window=True, covered=None),
+         show_window=True, covered=None, color=STATION_COLORS["1"]),
     #Station 2a: Slicing
-    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6, 
+    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6,
          type=tuple(["2a", "grilled_patty", "raw_potato"]),
          burn_type=tuple([]),
          show_window=True, covered=50,
-         player_zone="2a"),
+         player_zone="2a", color=STATION_COLORS["2a"]),
     #Station 2b: Combine (Combining functionality not currently implemented, currently just proccesses items)
-    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6, 
+    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
          type= tuple(["cheese_patty"]),
          burn_type=tuple([]),
          show_window=True, covered=150,
-         player_zone="2b"),
+         player_zone="2b", color=STATION_COLORS["2b"]),
     #Station 3: Plating
     dict(x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12,
          type=tuple(["assembled_patty", "cooked_fries"]),
          burn_type=tuple([]),
-         show_window=True, covered=None),
+         show_window=True, covered=None, color=STATION_COLORS["3"]),
 ]
 
 FINAL_STATION_DEF = dict(

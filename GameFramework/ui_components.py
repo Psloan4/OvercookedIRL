@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QProgressBar, QPushButton, QSizePolicy, QGraphicsOpacityEffect
 )
 from PySide6.QtCore import Qt, QRect, QTimer
-from PySide6.QtGui import QPainter, QPixmap, QColor, QFont, QBrush, QPen
+from PySide6.QtGui import QPainter, QPixmap, QColor, QFont, QBrush, QPen, QConicalGradient
 
 from station import Station
 from config import ASSET_MAP, TABLE_CM, TABLE_REGION, STATION_DEFS
@@ -237,6 +237,43 @@ def _make_placeholder(tag_id: int, size: int) -> QPixmap:
     return px
 
 
+class _ItemImage(QLabel):
+    """Item picture that paints a colored 'destination' ring on top of itself.
+
+    ring_color is None (no ring), a "#rrggbb" hex string (solid ring), or the
+    sentinel "rainbow" (conical-gradient ring, used for the delivery station).
+    """
+
+    _RAINBOW = ["#ff0000", "#ff9900", "#ffee00", "#33cc33",
+                "#3399ff", "#9933ff", "#ff0000"]
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.ring_color = None
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if not self.ring_color:
+            return
+        w = 4  # ring thickness
+        inset = w // 2 + 1
+        rect = self.rect().adjusted(inset, inset, -inset, -inset)
+
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        if self.ring_color == "rainbow":
+            grad = QConicalGradient(rect.center(), 0)
+            n = len(self._RAINBOW)
+            for i, c in enumerate(self._RAINBOW):
+                grad.setColorAt(i / (n - 1), QColor(c))
+            p.setPen(QPen(QBrush(grad), w))
+        else:
+            p.setPen(QPen(QColor(self.ring_color), w))
+        p.setBrush(Qt.NoBrush)
+        p.drawEllipse(rect)
+        p.end()
+
+
 class TagIcon(QWidget):
     """A single item on the table: its image, with a thin scan bar underneath."""
 
@@ -248,7 +285,7 @@ class TagIcon(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(3)
 
-        self.img = QLabel()
+        self.img = _ItemImage()
         self.img.setStyleSheet("background-color: rgba(255, 0, 0, 0)")
         self.img.setAlignment(Qt.AlignCenter)
 
@@ -263,20 +300,23 @@ class TagIcon(QWidget):
         lay.addWidget(self.bar)
 
         self.img_size = 0
-        self._appearance = None  # (item_type, state, size) currently drawn
+        self._appearance = None  # (item_type, state, size, color) currently drawn
         # normalized position on the table (0..1), set by TableView
         self.nx = 0.5
         self.ny = 0.5
 
-    def set_appearance(self, item_type, state, img_size: int):
+    def set_appearance(self, item_type, state, img_size: int, color=None):
         """Pick the image from the item's (type, stage); redraw only on change."""
-        key = (item_type, state, img_size)
+        key = (item_type, state, img_size, color)
         if key == self._appearance:
             return
         self._appearance = key
         self.img_size = img_size
         self.img.setFixedSize(img_size, img_size)
         self.bar.setFixedWidth(img_size)
+
+        # Colored ring = the station this item should be taken to next.
+        self.img.ring_color = color
 
         base = _load_base_pixmap(item_type, state)
         if base is None:
@@ -308,6 +348,10 @@ class StationZone(QWidget):
         self.station_type = station_type
         self.setObjectName("StationZone")
         self.setAttribute(Qt.WA_StyledBackground, True)
+
+        self.zone_color = None      # signature station colour (set by TableView)
+        self._scanning = False
+        self._reset_flash = False
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 10, 12, 10)
@@ -348,6 +392,31 @@ class StationZone(QWidget):
         lay.addWidget(self.info)
 
         self.normalized_rect = (0.0, 0.0, 1.0, 1.0)  # set by TableView
+        self._restyle()
+
+    @staticmethod
+    def _rgba(hex_color: str, alpha: float) -> str:
+        h = hex_color.lstrip("#")
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        return f"rgba({r}, {g}, {b}, {alpha})"
+
+    def set_zone_color(self, color):
+        self.zone_color = color
+        self._restyle()
+
+    def _restyle(self):
+        """Tint the zone with its station colour, emphasised by scan/reset state."""
+        # Zones only ever take a solid hex; fall back to neutral for anything else.
+        color = self.zone_color if str(self.zone_color or "").startswith("#") else "#c4cdda"
+        if self._reset_flash:
+            border, bg = "2px solid #dc2626", self._rgba("#dc2626", 0.18)
+        elif self._scanning:
+            border, bg = f"2px solid {color}", self._rgba(color, 0.30)
+        else:
+            border, bg = f"1px solid {color}", self._rgba(color, 0.12)
+        self.setStyleSheet(
+            f"QWidget#StationZone {{ background: {bg}; border: {border}; border-radius: 12px; }}"
+        )
 
     def _set_pill(self, scanning: bool, gated: bool, present: bool):
         # "STEP IN" takes priority: a gated station with no player can't scan.
@@ -364,10 +433,9 @@ class StationZone(QWidget):
             self.pill.style().unpolish(self.pill)
             self.pill.style().polish(self.pill)
 
-        if self.property("scan") != scanning:
-            self.setProperty("scan", scanning)
-            self.style().unpolish(self)
-            self.style().polish(self)
+        if self._scanning != scanning:
+            self._scanning = scanning
+            self._restyle()
 
     def _set_player_glyph(self, gated: bool, present: bool):
         if not gated:
@@ -379,15 +447,13 @@ class StationZone(QWidget):
 
     def _flash_reset(self):
         """Briefly outline the zone red to show a scan was lost to leaving."""
-        self.setProperty("reset_flash", True)
-        self.style().unpolish(self)
-        self.style().polish(self)
+        self._reset_flash = True
+        self._restyle()
         QTimer.singleShot(600, self._clear_reset_flash)
 
     def _clear_reset_flash(self):
-        self.setProperty("reset_flash", False)
-        self.style().unpolish(self)
-        self.style().polish(self)
+        self._reset_flash = False
+        self._restyle()
 
     def update_status(self, status: dict, item_handler):
         scans = status.get("scans") or {}
@@ -439,6 +505,7 @@ class TableView(QWidget):
         self._zones: dict[str, StationZone] = {}
         for d in STATION_DEFS:
             zone = StationZone(d["type"], self)
+            zone.set_zone_color(d.get("color"))
             zone.normalized_rect = (
                 (d["x"] - tx) / tw,
                 (d["y"] - ty) / th,
@@ -494,7 +561,7 @@ class TableView(QWidget):
                 self._icons[tid] = icon
                 icon.show()
 
-            icon.set_appearance(entry.get("type"), entry.get("state"), icon_size)
+            icon.set_appearance(entry.get("type"), entry.get("state"), icon_size, entry.get("color"))
             icon.set_progress(entry.get("progress"))
             icon.nx = entry["nx"]
             icon.ny = entry["ny"]
