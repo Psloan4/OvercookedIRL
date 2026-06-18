@@ -49,7 +49,7 @@ STAGE_DESTINATION = {
     "cheese_patty":    "2b",  # combine
     "assembled_patty": "3",   # plate
     "cooked_fries":    "3",   # plate
-    "cooked_patty":    "4",   # overcooked -> delivery resets it
+    "cooked_patty":    "2b",  # combine (same path as cheese_patty)
     "complete":        "4",   # deliver
 }
 
@@ -72,7 +72,7 @@ STATION_DEFS = [
          player_zone="2a", color=STATION_COLORS["2a"]),
     #Station 2b: Combine (Combining functionality not currently implemented, currently just proccesses items)
     dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
-         type= tuple(["cheese_patty"]),
+         type= tuple(["cheese_patty", "cooked_patty"]),
          burn_type=tuple([]),
          show_window=True, covered=150,
          player_zone="2b", color=STATION_COLORS["2b"]),
