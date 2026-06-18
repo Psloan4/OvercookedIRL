@@ -107,6 +107,12 @@ FRIES = [
     ["burnt_fries"]
 ]
 
+#List of starting states so final_station knows not to change these
+BASE_STATES = [
+    "raw_patty",
+    "raw_potato"
+]
+
 # --- Spatial table view -----------------------------------------------------
 # Real-world table size (cm). The on-screen table is locked to this aspect ratio.
 TABLE_CM = (117, 62)

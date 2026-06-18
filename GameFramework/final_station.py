@@ -1,6 +1,7 @@
 from aruco_tag_detector import ArucoTagDetector
 from feed_relay import FeedRelay
 from item import Item, ItemHandler
+from config import BASE_STATES
 
 
 class FinalStation:
@@ -57,7 +58,7 @@ class FinalStation:
                 continue
 
             item: Item = self.item_handler.get_item(tag)
-            if item.state != "complete":
+            if item.state in BASE_STATES:
                 self.frames_seen.pop(tag, None)
                 continue
 
@@ -65,7 +66,8 @@ class FinalStation:
             if self.frames_seen[tag] >= self.required_frames:
                 self.item_handler.remove_item(tag)
                 self.frames_seen.pop(tag, None)
-                delivered.append(tag)
+                if item.state == "complete":
+                    delivered.append(tag)
 
         scans = {
             tag: min(frames / self.required_frames, 1.0)
