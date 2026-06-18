@@ -16,6 +16,7 @@ class Station:
         x, y, w, h,
         scan_time,
         type,
+        burn_type,
         item_handler,
         player_zone=None,
     ):
@@ -24,6 +25,7 @@ class Station:
         self.w = w
         self.h = h
         self.type = type
+        self.burn_type = burn_type
         self.item_handler: ItemHandler = item_handler
         self.scan_time = float(scan_time)
 
@@ -141,7 +143,10 @@ class Station:
             if self._progress(sc["accum"]) >= 1.0:
                 if self.DEBUG:
                     print(f"[SCAN FINISH] Station={self.type} Tag={tag} seen_time={sc['accum']:.3f}")
-                self.item_handler.advance_item(tag)
+                if self.item_handler.get_item(tag).state in self.burn_type:
+                    self.item_handler.burn_item(tag)
+                else:
+                    self.item_handler.advance_item(tag)
                 completed.append(tag)
                 del self.scans[tag]
 

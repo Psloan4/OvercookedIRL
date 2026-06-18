@@ -52,6 +52,7 @@ class OvercookedIRLApp:
                     d["x"], d["y"], d["w"], d["h"],
                     d["scan_time"],
                     d["type"],
+                    d["burn_type"],
                     self.item_handler,
                     player_zone=d.get("player_zone"),
                 )

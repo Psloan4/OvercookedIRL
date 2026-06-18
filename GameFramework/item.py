@@ -20,7 +20,7 @@ class Item:
         self.state = random.choice(self.future_states.pop(0))
 
     def burn(self):
-        self.state = "burnt"
+        self.state = self.future_states.pop(-1)[0]
         self.future_states = []
         
 class ItemHandler:

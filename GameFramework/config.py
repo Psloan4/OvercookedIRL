@@ -31,10 +31,28 @@ PLAYER_ZONES = {
 }
 
 STATION_DEFS = [
-    dict(x=7, y=110, w=155, h=322, scan_time=12, type=tuple(["1"]),  show_window=True, covered=None),
-    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6, type=tuple(["2a"]), show_window=True, covered=50, player_zone="2a"),
-    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6, type= tuple(["2b","2a"]), show_window=True, covered=150, player_zone="2b"),
-    dict(x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12, type=tuple(["3"]),  show_window=True, covered=None),
+    #Station 1: Cooking
+    dict(x=7, y=110, w=155, h=322, scan_time=12, 
+         type=tuple(["raw_patty", "cooked_patty", "cheese_patty", "sliced_fries", "cooked_fries"]), 
+         burn_type=tuple(["cooked_patty", "cheese_patty", "cooked_fries"]),
+         show_window=True, covered=None),
+    #Station 2a: Slicing
+    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6, 
+         type=tuple(["2a", "grilled_patty", "raw_potato"]),
+         burn_type=tuple([]),
+         show_window=True, covered=50,
+         player_zone="2a"),
+    #Station 2b: Combine (Combining functionality not currently implemented, currently just proccesses items)
+    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6, 
+         type= tuple(["cheese_patty"]),
+         burn_type=tuple([]),
+         show_window=True, covered=150,
+         player_zone="2b"),
+    #Station 3: Plating
+    dict(x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12,
+         type=tuple(["assembled_patty", "cooked_fries"]),
+         burn_type=tuple([]),
+         show_window=True, covered=None),
 ]
 
 FINAL_STATION_DEF = dict(
@@ -71,17 +89,22 @@ IDS = { #Currently supports burgers and fries -- soon to add Player
     17: "THE GHOST" #sometimes the camera hallucinates tag 17
 }
 
+#Recipies for each food type -- progresses to a random item in the next step when progressed at the appropriate station until complete.
+#The burnt state is placed on the end so it never occurs in regular progression, and each food can have it's own burnt sprite.
 BURGER = [
-    ["1"], #Raw Patty
-    ["2a", "2b"], #I dunno add cheese or smth
-    ["3"], #cook again for some reason
-    ["complete"]
+    ["raw_patty"], 
+    ["cooked_patty", "cheese_patty"], 
+    ["assembled_patty"], 
+    ["complete"],
+    ["burnt_patty"]
 ]
 
 FRIES = [
-    ["2a","2b"], #Cut into slices
-    ["1","3"], #cook
-    ["complete"]
+    ["raw_potato"],
+    ["sliced_fries"],
+    ["cooked_fries"], 
+    ["complete"],
+    ["burnt_fries"]
 ]
 
 # --- Spatial table view -----------------------------------------------------
@@ -94,20 +117,19 @@ TABLE_REGION = (7, 110, 604, 322)
 # Item image per (type, stage): the picture changes as an item progresses.
 ASSET_MAP = {
     "BURGER": {
-        "1":        "patty.png",          # raw patty
-        "2a":       "grilled_patty.png",
-        "2b":       "cheesy_patty.png",
-        "3":        "burger.png",
-        "complete": "burger_complete.png",
-        "burnt": "lord_crandy_bw.png"
+        "raw_patty":        "patty.png",
+        "cooked_patty":     "grilled_patty.png",
+        "cheese_patty":     "cheesy_patty.png",
+        "assembled_patty":  "burger.png",
+        "complete":         "burger_complete.png",
+        "burnt_patty":      "lord_crandy_bw.png"
     },
     "FRIES": {
-        "2a":       "potato.png",
-        "2b":       "potato.png",
-        "1":        "raw_fries.png",
-        "3":        "raw_fries.png",
-        "complete": "finished_fries.png",
-        "burnt": "lord_crandy_bw.png"
+        "raw_potato":       "potato.png",
+        "sliced_fries":     "raw_fries.png",
+        "cooked_fries":     "poop_potato.png",
+        "complete":         "finished_fries.png",
+        "burnt_fries":      "lord_crandy_bw.png"
     },
 }
 
