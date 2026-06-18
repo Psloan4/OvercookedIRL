@@ -123,17 +123,17 @@ TABLE_REGION = (7, 110, 604, 322)
 # Item image per (type, stage): the picture changes as an item progresses.
 ASSET_MAP = {
     "BURGER": {
-        "raw_patty":        "patty.png",
-        "cooked_patty":     "grilled_patty.png",
-        "cheese_patty":     "cheesy_patty.png",
-        "assembled_patty":  "burger.png",
-        "complete":         "burger_complete.png",
+        "raw_patty":        "raw_patty.png",
+        "cooked_patty":     "cooked_patty.png",
+        "cheese_patty":     "cheese_patty.png",
+        "assembled_patty":  "assembled_burger.png",
+        "complete":         "finished_burger.png",
         "burnt_patty":      "lord_crandy_bw.png"
     },
     "FRIES": {
         "raw_potato":       "potato.png",
         "sliced_fries":     "raw_fries.png",
-        "cooked_fries":     "poop_potato.png",
+        "cooked_fries":     "cooked_fries.png",
         "complete":         "finished_fries.png",
         "burnt_fries":      "lord_crandy_bw.png"
     },
