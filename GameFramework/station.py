@@ -32,6 +32,7 @@ class Station:
         # Key into PLAYER_ZONES/PLAYER_CAMS, or None if this station never
         # requires a player to be standing beside it.
         self.player_zone = player_zone
+        self.player_grace_frames = 0
 
         # State machine
         self.state = self.READY
@@ -70,12 +71,9 @@ class Station:
         frame, detected once on the full frame by the caller.
 
         player_present: whether a player is standing beside this station this
-        frame. Stations that don't require a player leave it True. When it's
-        False, every in-progress scan resets to zero immediately -- the player
-        must commit to standing in the zone for the whole scan.
+        frame. Stations that don't require a player leave it True.
 
-        Every item whose stage matches this station scans concurrently and
-        independently. Returns per-tag progress + the tags that finished a scan
+        Returns per-tag progress + the tags that finished a scan
         this tick.
         """
         now = time.time()
@@ -83,24 +81,27 @@ class Station:
         # No player beside the station -> wipe all progress. Scans restart from
         # zero when the player returns and the item is still present.
         if not player_present:
-            wiped = bool(self.scans)
-            if self.DEBUG and wiped:
-                print(f"[SCAN RESET] Station={self.type} player left zone "
-                      f"(dropped {len(self.scans)} scan(s))")
-            self.scans.clear()
-            self.state = self.READY
-            return {
-                "state": self.state,
-                "scans": {},
-                "completed": [],
-                "ids": ids,
-                "gated": self.player_zone is not None,
-                "player_present": False,
-                # True only on the tick a scan was actually lost to the player
-                # leaving -- the UI uses this to flash the zone red.
-                "reset_by_player": wiped,
-            }
-
+            self.player_grace_frames += 1
+            if self.player_grace_frames >= 16: #Max number of scans player can be missing before reset
+                wiped = bool(self.scans)
+                if self.DEBUG and wiped:
+                    print(f"[SCAN RESET] Station={self.type} player left zone "
+                        f"(dropped {len(self.scans)} scan(s))")
+                self.scans.clear()
+                self.state = self.READY
+                return {
+                    "state": self.state,
+                    "scans": {},
+                    "completed": [],
+                    "ids": ids,
+                    "gated": self.player_zone is not None,
+                    "player_present": False,
+                    # True only on the tick a scan was actually lost to the player
+                    # leaving -- the UI uses this to flash the zone red.
+                    "reset_by_player": wiped,
+                }
+        else:
+            self.player_grace_frames = 0
         present_ids = set(ids)
 
         # Start a scan for any present, matching item we aren't already tracking.

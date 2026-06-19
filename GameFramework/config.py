@@ -14,11 +14,6 @@ GAME_SECONDS = 300 # in seconds
 TICK_MS = 16  # ~60 FPS UI update
 
 # --- Player presence --------------------------------------------------------
-# Stations 2a and 2b only scan while a player is standing beside them. Each
-# player wears an ArUco tag (4x4_50) on their head; if any of these tags is
-# detected inside the station's zone on its dedicated camera, a player counts
-# as present and the scan may progress. Stepping out of the zone resets the
-# in-progress scan to zero.
 PLAYER_TAG_IDS = {11, 12}   # head tags, one per player (kept clear of food ids 0-10)
 
 PLAYER_CAMS = {
@@ -31,8 +26,7 @@ PLAYER_ZONES = {
 }
 
 # --- Destination colours (UI guidance) --------------------------------------
-# Each station has a signature colour. An item is tinted with the colour of the
-# station it should go to NEXT, so players can match item -> zone by colour.
+# Each station has a signature colour so players can match item -> zone by colour.
 STATION_COLORS = {
     "1":  "#ef4444",   # Cooking   (red)
     "2a": "#3b82f6",   # Slicing   (blue)
@@ -66,7 +60,7 @@ STATION_DEFS = [
          show_window=True, covered=None, color=STATION_COLORS["1"]),
     #Station 2a: Slicing
     dict(x=7 + 155, y=110, w=253, h=155, scan_time=6,
-         type=tuple(["2a", "grilled_patty", "raw_potato"]),
+         type=tuple(["2a", "raw_potato"]),
          burn_type=tuple([]),
          show_window=True, covered=50,
          player_zone="2a", color=STATION_COLORS["2a"]),
@@ -100,7 +94,7 @@ GRID_PLACEMENT = {
     "3":  (0, 2, 2, 1),
 }
 
-IDS = { #Currently supports burgers and fries -- soon to add Player
+IDS = {
     0: "BURGER",
     1: "BURGER",
     2: "BURGER",
@@ -117,8 +111,8 @@ IDS = { #Currently supports burgers and fries -- soon to add Player
     17: "THE GHOST" #sometimes the camera hallucinates tag 17
 }
 
-#Recipies for each food type -- progresses to a random item in the next step when progressed at the appropriate station until complete.
-#The burnt state is placed on the end so it never occurs in regular progression, and each food can have it's own burnt sprite.
+#Recipies for each food type -- progresses to a random item in the next step until complete.
+#The burnt state is placed on the end so it never occurs in regular progression
 BURGER = [
     ["raw_patty"], 
     ["cooked_patty", "cheese_patty"], 
@@ -165,6 +159,9 @@ ASSET_MAP = {
         "complete":         "finished_fries.png",
         "burnt_fries":      "lord_crandy_bw.png"
     },
+    "THE GHOST": {
+        "inert":            "lord_crandy_bw.png"
+    }
 }
 
 # hi my name is bryson and i like to eat food and barbecue and i like overcooked even though i dont really play it. but i love overcookedirl even moreeeeeeeee.
