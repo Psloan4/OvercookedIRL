@@ -44,13 +44,9 @@ class ItemHandler:
     def get_item(self, tag_id) -> Item:
         return self.items[tag_id]
 
-    # Tags that represent actual cookable items (everything else -- players,
-    # camera hallucinations -- is ignored by the item system).
-    FOOD_TYPES = ("BURGER", "FRIES", "CHEESE") ##REMINDER TO MOVE THIS TO CONFIG
 
     def create_item(self, tag_id):
         if not tag_id in IDS: return
-        if IDS[tag_id] not in self.FOOD_TYPES: return
         if self.has_item(tag_id): return
         self.items[tag_id] = Item(tag_id)
     

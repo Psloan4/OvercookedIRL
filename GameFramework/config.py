@@ -134,6 +134,11 @@ CHEESE = [
     ["sliced_cheese"]
 ]
 
+BUNS = [
+    ["fresh_bun"],
+    ["sliced_bun"]
+]
+
 #List of starting states so final_station knows not to change these
 BASE_STATES = [
     "raw_patty",
@@ -143,7 +148,10 @@ BASE_STATES = [
 # Some check at the combining station will see if both are in the tuple
 COMBINATIONS = {
     frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_patty"],["complete"],["burnt_patty"]],
-    # tuple("cooked_fries","sliced_cheese"): [["cheese_fries"],["complete"]]
+    frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete"]],
+    frozenset({"cooked_patty", "sliced_bun"}): [["assembled_burger"],["complete"]],
+
+
 }
 
 # --- Spatial table view -----------------------------------------------------
@@ -180,6 +188,8 @@ ASSET_MAP = {
     },
     "THE GHOST": {
         "inert":            "lord_crandy_bw.png"
+    },
+    "PLAYER": {
     }
 }
 
