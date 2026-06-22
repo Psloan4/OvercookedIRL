@@ -56,24 +56,24 @@ STATION_DEFS = [
     #Station 1: Cooking
     dict(x=7, y=110, w=155, h=322, scan_time=12,
          type=tuple(["raw_patty", "cooked_patty", "cheese_patty", "sliced_fries", "cooked_fries"]),
-         burn_type=tuple(["cooked_patty", "cheese_patty", "cooked_fries"]),
+         burn_type=tuple(["cooked_patty", "cheese_patty", "cooked_fries"]), combinable=[],
          show_window=True, covered=None, color=STATION_COLORS["1"]),
     #Station 2a: Slicing
     dict(x=7 + 155, y=110, w=253, h=155, scan_time=6,
-         type=tuple(["2a", "raw_potato"]),
-         burn_type=tuple([]),
+         type=tuple(["2a", "raw_potato", "cheese_block"]),
+         burn_type=tuple([]), combinable=[],
          show_window=True, covered=50,
          player_zone="2a", color=STATION_COLORS["2a"]),
     #Station 2b: Combine (Combining functionality not currently implemented, currently just proccesses items)
     dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
-         type= tuple(["cheese_patty", "cooked_patty"]),
-         burn_type=tuple([]),
+         type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese"]),
+         burn_type=tuple([]), combinable=["sliced_cheese"],
          show_window=True, covered=150,
          player_zone="2b", color=STATION_COLORS["2b"]),
     #Station 3: Plating
     dict(x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12,
          type=tuple(["assembled_patty", "cooked_fries"]),
-         burn_type=tuple([]),
+         burn_type=tuple([]), combinable=[],
          show_window=True, covered=None, color=STATION_COLORS["3"]),
 ]
 
@@ -96,7 +96,7 @@ GRID_PLACEMENT = {
 
 IDS = {
     0: "BURGER",
-    1: "BURGER",
+    1: "CHEESE",
     2: "BURGER",
     3: "BURGER",
     4: "BURGER",
@@ -129,11 +129,22 @@ FRIES = [
     ["burnt_fries"]
 ]
 
+CHEESE = [
+    ["cheese_block"],
+    ["sliced_cheese"]
+]
+
 #List of starting states so final_station knows not to change these
 BASE_STATES = [
     "raw_patty",
     "raw_potato"
 ]
+
+# Some check at the combining station will see if both are in the tuple
+COMBINATIONS = {
+    frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_patty"],["complete"],["burnt_patty"]],
+    # tuple("cooked_fries","sliced_cheese"): [["cheese_fries"],["complete"]]
+}
 
 # --- Spatial table view -----------------------------------------------------
 # Real-world table size (cm). The on-screen table is locked to this aspect ratio.
@@ -158,6 +169,14 @@ ASSET_MAP = {
         "cooked_fries":     "cooked_fries.png",
         "complete":         "finished_fries.png",
         "burnt_fries":      "burnt_fries.png"
+    },
+    "CHEESE": {
+        "cheese_block":     "lord_crandy_bw.png",
+        "sliced_cheese":    "poop_potato.png",
+        "cheese_patty":     "cheese_patty.png",
+        "assembled_patty":  "assembled_burger.png",
+        "complete":         "finished_burger.png",
+        "burnt_patty":      "burnt_patty.png"
     },
     "THE GHOST": {
         "inert":            "lord_crandy_bw.png"

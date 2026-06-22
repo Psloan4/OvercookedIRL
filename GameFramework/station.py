@@ -1,5 +1,7 @@
 import time
+import itertools
 from item import Item, ItemHandler
+from config import COMBINATIONS
 
 
 class Station:
@@ -17,6 +19,7 @@ class Station:
         scan_time,
         type,
         burn_type,
+        combinable,
         item_handler,
         player_zone=None,
     ):
@@ -26,6 +29,7 @@ class Station:
         self.h = h
         self.type = type
         self.burn_type = burn_type
+        self.combinable = combinable
         self.item_handler: ItemHandler = item_handler
         self.scan_time = float(scan_time)
 
@@ -39,6 +43,9 @@ class Station:
 
         #   tag -> {"accum": float, "last_seen": float, "last_tick": float}
         self.scans: dict[int, dict] = {}
+
+        # tags ready for combining
+        self.combine_ready: list[int] = []
 
     def contains(self, px: float, py: float) -> bool:
         """Is the point (full-frame pixel coords) inside this station's region?"""
@@ -64,6 +71,13 @@ class Station:
 
     def _progress(self, accum: float) -> float:
         return 1.0 if self.scan_time <= 0 else min(accum / self.scan_time, 1.0)
+    
+    def _combine(self, ids, states_list):
+        """sets ids to the given state list and removes them from the ready to combine list"""
+        for id in ids:
+            self.item_handler.change_states(id, states_list.copy())
+            self.combine_ready.remove(id)
+
 
     def _tick(self, ids: list[int], player_present: bool = True):
         """
@@ -114,12 +128,13 @@ class Station:
                     print(f"[SCAN START] Station={self.type} Tag={tag} scan_time={self.scan_time}")
 
         completed: list[int] = []
+        
 
         for tag in list(self.scans.keys()):
             sc = self.scans[tag]
 
-            # Item advanced (or went invalid) -> this scan is finished/irrelevant.
-            if not self._matches(tag):
+            # Item advanced (or is waiting to combine) -> this scan is finished/irrelevant.
+            if (not self._matches(tag)) or (tag in self.combine_ready):
                 del self.scans[tag]
                 continue
 
@@ -141,15 +156,29 @@ class Station:
                     del self.scans[tag]
                 continue
 
+            #process completed tags
             if self._progress(sc["accum"]) >= 1.0:
                 if self.DEBUG:
                     print(f"[SCAN FINISH] Station={self.type} Tag={tag} seen_time={sc['accum']:.3f}")
                 if self.item_handler.get_item(tag).state in self.burn_type:
                     self.item_handler.burn_item(tag)
+                elif self.item_handler.get_item(tag).state in self.combinable:
+                    self.combine_ready.append(tag)
                 else:
                     self.item_handler.advance_item(tag)
                 completed.append(tag)
                 del self.scans[tag]
+
+        #process combinations
+        if len(self.combine_ready) > 1:
+            for i, j in itertools.combinations(self.combine_ready, 2):
+                i_state = self.item_handler.get_item(i).state
+                j_state = self.item_handler.get_item(j).state
+                for combination in COMBINATIONS.keys():
+                    if (i_state in combination) and (j_state in combination):
+                        if self.DEBUG:
+                            print(f"[COMBINING] Station={self.type} Tags={i},{j} Combination={combination}")
+                        self._combine([i,j], COMBINATIONS[combination])
 
         scans_progress = {tag: self._progress(sc["accum"]) for tag, sc in self.scans.items()}
         self.state = self.SCANNING if self.scans else self.READY
