@@ -41,7 +41,7 @@ STAGE_DESTINATION = {
     "sliced_fries":    "1",   # cook
     "raw_potato":      "2a",  # slice
     "cheese_patty":    "2b",  # combine
-    "assembled_patty": "3",   # plate
+    "assembled_burger": "3",   # plate
     "cooked_fries":    "3",   # plate
     "cooked_patty":    "2b",  # combine (same path as cheese_patty)
     "complete":        "4",   # deliver
@@ -67,12 +67,12 @@ STATION_DEFS = [
     #Station 2b: Combine (Combining functionality not currently implemented, currently just proccesses items)
     dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
          type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese"]),
-         burn_type=tuple([]), combinable=["sliced_cheese"],
+         burn_type=tuple([]), combinable=["sliced_cheese", "cooked_patty"],
          show_window=True, covered=150,
          player_zone="2b", color=STATION_COLORS["2b"]),
     #Station 3: Plating
     dict(x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12,
-         type=tuple(["assembled_patty", "cooked_fries"]),
+         type=tuple(["assembled_burger", "cooked_fries"]),
          burn_type=tuple([]), combinable=[],
          show_window=True, covered=None, color=STATION_COLORS["3"]),
 ]
@@ -116,7 +116,7 @@ IDS = {
 BURGER = [
     ["raw_patty"], 
     ["cooked_patty", "cheese_patty"], 
-    ["assembled_patty"], 
+    ["assembled_burger"], 
     ["complete"],
     ["burnt_patty"]
 ]
@@ -147,9 +147,10 @@ BASE_STATES = [
 
 # Some check at the combining station will see if both are in the tuple
 COMBINATIONS = {
-    frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_patty"],["complete"],["burnt_patty"]],
-    frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete"]],
+    frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_burger"],["complete"],["burnt_patty"]],
     frozenset({"cooked_patty", "sliced_bun"}): [["assembled_burger"],["complete"]],
+
+    frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete"]],
 
 
 }
@@ -167,7 +168,7 @@ ASSET_MAP = {
         "raw_patty":        "raw_patty.png",
         "cooked_patty":     "cooked_patty.png",
         "cheese_patty":     "cheese_patty.png",
-        "assembled_patty":  "assembled_burger.png",
+        "assembled_burger":  "assembled_burger.png",
         "complete":         "finished_burger.png",
         "burnt_patty":      "burnt_patty.png"
     },
@@ -182,7 +183,7 @@ ASSET_MAP = {
         "cheese_block":     "lord_crandy_bw.png",
         "sliced_cheese":    "poop_potato.png",
         "cheese_patty":     "cheese_patty.png",
-        "assembled_patty":  "assembled_burger.png",
+        "assembled_burger":  "assembled_burger.png",
         "complete":         "finished_burger.png",
         "burnt_patty":      "burnt_patty.png"
     },
