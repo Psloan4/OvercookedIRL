@@ -25,56 +25,29 @@ PLAYER_ZONES = {
     "2b": dict(x=1, y=31, w=636, h=395),   # camera 2
 }
 
-# --- Destination colours (UI guidance) --------------------------------------
-# Each station has a signature colour so players can match item -> zone by colour.
-STATION_COLORS = {
-    "1":  "#ef4444",   # Cooking   (red)
-    "2a": "#3b82f6",   # Slicing   (blue)
-    "2b": "#22c55e",   # Combining (green)
-    "3":  "#facc15",   # Plating   (yellow)
-    "4":  "rainbow",   # Delivery  (rainbow ring; no on-table zone to tint)
-}
-
-# Item stage -> the station it should be taken to next.
-STAGE_DESTINATION = {
-    "raw_patty":       "1",   # cook
-    "sliced_fries":    "1",   # cook
-    "raw_potato":      "2a",  # slice
-    "cheese_patty":    "2b",  # combine
-    "assembled_burger": "3",   # plate
-    "cooked_fries":    "3",   # plate
-    "cooked_patty":    "2b",  # combine (same path as cheese_patty)
-    "complete":        "4",   # deliver
-}
-
-# Item stage -> colour of its destination station (used to tint item rings).
-STAGE_COLORS = {
-    stage: STATION_COLORS[dest] for stage, dest in STAGE_DESTINATION.items()
-}
-
 STATION_DEFS = [
     #Station 1: Cooking
-    dict(x=7, y=110, w=155, h=322, scan_time=12, burn_time=12,
-         type=tuple(["raw_patty", "cooked_patty", "cheese_patty", "sliced_fries", "cooked_fries"]),
-         burn_type=tuple(["cooked_patty", "cheese_patty", "cooked_fries"]), combinable=[],
-         show_window=True, covered=None, color=STATION_COLORS["1"]),
+    dict(x=7, y=110, w=155, h=322, scan_time=12, 
+         type=tuple(["raw_patty", "cooked_patty", "cheese_patty", "sliced_fries", "cooked_fries"]), 
+         burn_type=tuple(["cooked_patty", "cheese_patty", "cooked_fries"]),
+         show_window=True, covered=None),
     #Station 2a: Slicing
-    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6,
-         type=tuple(["2a", "raw_potato", "cheese_block"]),
-         burn_type=tuple([]), combinable=[],
+    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6, 
+         type=tuple(["grilled_patty", "raw_potato"]),
+         burn_type=tuple([]),
          show_window=True, covered=50,
-         player_zone="2a", color=STATION_COLORS["2a"]),
+         player_zone="2a"),
     #Station 2b: Combine (Combining functionality not currently implemented, currently just proccesses items)
-    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
-         type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese"]),
-         burn_type=tuple([]), combinable=["sliced_cheese",],
+    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6, 
+         type= tuple(["cheese_patty"]),
+         burn_type=tuple([]),
          show_window=True, covered=150,
-         player_zone="2b", color=STATION_COLORS["2b"]),
+         player_zone="2b"),
     #Station 3: Plating
     dict(x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12,
-         type=tuple(["assembled_burger", "cooked_fries"]),
-         burn_type=tuple([]), combinable=[],
-         show_window=True, covered=None, color=STATION_COLORS["3"]),
+         type=tuple(["assembled_patty", "cooked_fries"]),
+         burn_type=tuple([]),
+         show_window=True, covered=None),
 ]
 
 FINAL_STATION_DEF = dict(
@@ -94,7 +67,7 @@ GRID_PLACEMENT = {
     "3":  (0, 2, 2, 1),
 }
 
-IDS = {
+IDS = { #Currently supports burgers and fries -- soon to add Player
     0: "BURGER",
     1: "BURGER",
     2: "BURGER",
@@ -111,12 +84,12 @@ IDS = {
     17: "THE GHOST" #sometimes the camera hallucinates tag 17
 }
 
-#Recipies for each food type -- progresses to a random item in the next step until complete.
-#The burnt state is placed on the end so it never occurs in regular progression
+#Recipies for each food type -- progresses to a random item in the next step when progressed at the appropriate station until complete.
+#The burnt state is placed on the end so it never occurs in regular progression, and each food can have it's own burnt sprite.
 BURGER = [
     ["raw_patty"], 
     ["cooked_patty", "cheese_patty"], 
-    ["assembled_burger"], 
+    ["assembled_patty"], 
     ["complete"],
     ["burnt_patty"]
 ]
@@ -129,32 +102,6 @@ FRIES = [
     ["burnt_fries"]
 ]
 
-CHEESE = [
-    ["cheese_block"],
-    ["sliced_cheese"]
-]
-
-BUNS = [
-    ["fresh_bun"],
-    ["sliced_bun"]
-]
-
-#List of starting states so final_station knows not to change these
-BASE_STATES = [
-    "raw_patty",
-    "raw_potato"
-]
-
-# Some check at the combining station will see if both are in the tuple
-COMBINATIONS = {
-    frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_burger"],["complete"],["burnt_patty"]],
-    frozenset({"cooked_patty", "sliced_bun"}): [["assembled_burger"],["complete"]],
-
-    frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete"]],
-
-
-}
-
 # --- Spatial table view -----------------------------------------------------
 # Real-world table size (cm). The on-screen table is locked to this aspect ratio.
 TABLE_CM = (117, 62)
@@ -165,33 +112,20 @@ TABLE_REGION = (7, 110, 604, 322)
 # Item image per (type, stage): the picture changes as an item progresses.
 ASSET_MAP = {
     "BURGER": {
-        "raw_patty":        "raw_patty.png",
-        "cooked_patty":     "cooked_patty.png",
-        "cheese_patty":     "cheese_patty.png",
-        "assembled_burger":  "assembled_burger.png",
-        "complete":         "finished_burger.png",
-        "burnt_patty":      "burnt_patty.png"
+        "raw_patty":        "patty.png",
+        "cooked_patty":     "grilled_patty.png",
+        "cheese_patty":     "cheesy_patty.png",
+        "assembled_patty":  "burger.png",
+        "complete":         "burger_complete.png",
+        "burnt_patty":      "lord_crandy_bw.png"
     },
     "FRIES": {
         "raw_potato":       "potato.png",
         "sliced_fries":     "raw_fries.png",
-        "cooked_fries":     "cooked_fries.png",
+        "cooked_fries":     "poop_potato.png",
         "complete":         "finished_fries.png",
-        "burnt_fries":      "burnt_fries.png"
+        "burnt_fries":      "lord_crandy_bw.png"
     },
-    "CHEESE": {
-        "cheese_block":     "cheese_block.png",
-        "sliced_cheese":    "sliced_cheese.png",
-        "cheese_patty":     "cheese_patty.png",
-        "assembled_burger":  "assembled_burger.png",
-        "complete":         "finished_burger.png",
-        "burnt_patty":      "burnt_patty.png"
-    },
-    "THE GHOST": {
-        "inert":            "lord_crandy_bw.png"
-    },
-    "PLAYER": {
-    }
 }
 
 # hi my name is bryson and i like to eat food and barbecue and i like overcooked even though i dont really play it. but i love overcookedirl even moreeeeeeeee.
