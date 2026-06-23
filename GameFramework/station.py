@@ -209,7 +209,6 @@ class Station:
                 print(f"[FORGETTING] Station={self.type} Tag={tag}")
             del self.combine_ready[tag]
 
-        scans_progress = {tag: self._progress(sc["accum"]) for tag, sc in self.scans.items()}
         scans_progress = {tag: self._progress(tag, sc["accum"]) for tag, sc in self.scans.items()}
         # A scan is a "burn" when the item's current stage is in this station's
         # burn_type -- the UI drains the bar red instead of filling it blue.
