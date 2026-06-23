@@ -67,7 +67,7 @@ STATION_DEFS = [
     #Station 2b: Combine (Combining functionality not currently implemented, currently just proccesses items)
     dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
          type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese"]),
-         burn_type=tuple([]), combinable=["sliced_cheese", "cooked_patty"],
+         burn_type=tuple([]), combinable=["sliced_cheese",],
          show_window=True, covered=150,
          player_zone="2b", color=STATION_COLORS["2b"]),
     #Station 3: Plating
@@ -96,7 +96,7 @@ GRID_PLACEMENT = {
 
 IDS = {
     0: "BURGER",
-    1: "CHEESE",
+    1: "BURGER",
     2: "BURGER",
     3: "BURGER",
     4: "BURGER",
@@ -180,8 +180,8 @@ ASSET_MAP = {
         "burnt_fries":      "burnt_fries.png"
     },
     "CHEESE": {
-        "cheese_block":     "lord_crandy_bw.png",
-        "sliced_cheese":    "poop_potato.png",
+        "cheese_block":     "cheese_block.png",
+        "sliced_cheese":    "sliced_cheese.png",
         "cheese_patty":     "cheese_patty.png",
         "assembled_burger":  "assembled_burger.png",
         "complete":         "finished_burger.png",
