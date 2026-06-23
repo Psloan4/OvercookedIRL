@@ -48,8 +48,8 @@ class Station:
         #   tag -> {"accum": float, "last_seen": float, "last_tick": float}
         self.scans: dict[int, dict] = {}
 
-        # tags ready for combining
-        self.combine_ready: list[int] = []
+        # tags ready for combining (uses a dictionary to track grace frames on combinable tags)
+        self.combine_ready: dict[int, int] = {}
 
     def contains(self, px: float, py: float) -> bool:
         """Is the point (full-frame pixel coords) inside this station's region?"""
@@ -86,7 +86,7 @@ class Station:
         """sets ids to the given state list and removes them from the ready to combine list"""
         for id in ids:
             self.item_handler.change_states(id, states_list.copy())
-            self.combine_ready.remove(id)
+            del self.combine_ready[id]
 
 
     def _tick(self, ids: list[int], player_present: bool = True):
@@ -134,17 +134,24 @@ class Station:
                 continue
             if self._matches(tag):
                 self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
-                if self.DEBUG:
+                if self.DEBUG and (not tag in self.combine_ready):
                     print(f"[SCAN START] Station={self.type} Tag={tag} scan_time={self.scan_time}")
 
         completed: list[int] = []
-        
+
+        seen_combine_ready = []
 
         for tag in list(self.scans.keys()):
             sc = self.scans[tag]
 
             # Item advanced (or is waiting to combine) -> this scan is finished/irrelevant.
-            if (not self._matches(tag)) or (tag in self.combine_ready):
+            if (not self._matches(tag)):
+                del self.scans[tag]
+                continue
+
+            if (tag in self.combine_ready):
+                self.combine_ready[tag] = 0 #resets grace period if we see the tag
+                seen_combine_ready.append(tag)
                 del self.scans[tag]
                 continue
 
@@ -173,7 +180,8 @@ class Station:
                 if self.item_handler.get_item(tag).state in self.burn_type:
                     self.item_handler.burn_item(tag)
                 elif self.item_handler.get_item(tag).state in self.combinable:
-                    self.combine_ready.append(tag)
+                    self.combine_ready[tag] = 0
+                    seen_combine_ready.append(tag)
                 else:
                     self.item_handler.advance_item(tag)
                 completed.append(tag)
@@ -190,6 +198,18 @@ class Station:
                             print(f"[COMBINING] Station={self.type} Tags={i},{j} Combination={combination}")
                         self._combine([i,j], COMBINATIONS[combination])
 
+        deleted_tags = []
+        for tag in self.combine_ready:
+            if not tag in seen_combine_ready:
+                self.combine_ready[tag] += 1
+                if self.combine_ready[tag] > 16:
+                    deleted_tags.append(tag)
+        for tag in deleted_tags:
+            if self.DEBUG:
+                print(f"[FORGETTING] Station={self.type} Tag={tag}")
+            del self.combine_ready[tag]
+
+        scans_progress = {tag: self._progress(sc["accum"]) for tag, sc in self.scans.items()}
         scans_progress = {tag: self._progress(tag, sc["accum"]) for tag, sc in self.scans.items()}
         # A scan is a "burn" when the item's current stage is in this station's
         # burn_type -- the UI drains the bar red instead of filling it blue.
