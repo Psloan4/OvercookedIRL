@@ -226,12 +226,19 @@ class TagIcon(QWidget):
         self.img.setPixmap(pm)
         self.adjustSize()
 
-    def set_progress(self, progress):
+    def set_progress(self, progress, burning=False):
         if progress is None:
             self.bar.hide()
-        else:
-            self.bar.show()
-            self.bar.setValue(int(max(0.0, min(1.0, float(progress))) * 100))
+            return
+        self.bar.show()
+        p = max(0.0, min(1.0, float(progress)))
+        # Normal scan fills blue left->right. A burn drains red full->empty:
+        # value goes 100->0, so the bar empties from the right (right-to-left).
+        self.bar.setValue(int((1.0 - p) * 100) if burning else int(p * 100))
+        if self.bar.property("burning") != burning:
+            self.bar.setProperty("burning", burning)
+            self.bar.style().unpolish(self.bar)
+            self.bar.style().polish(self.bar)
 
 
 class StationZone(QWidget):
@@ -460,7 +467,7 @@ class TableView(QWidget):
                 icon.show()
 
             icon.set_appearance(entry.get("type"), entry.get("state"), icon_size, entry.get("color"))
-            icon.set_progress(entry.get("progress"))
+            icon.set_progress(entry.get("progress"), entry.get("burning", False))
             icon.nx = entry["nx"]
             icon.ny = entry["ny"]
             icon.raise_()  # keep items above the station zones

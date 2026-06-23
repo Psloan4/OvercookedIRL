@@ -17,6 +17,7 @@ class Station:
         self,
         x, y, w, h,
         scan_time,
+        burn_time,
         type,
         burn_type,
         combinable,
@@ -32,6 +33,9 @@ class Station:
         self.combinable = combinable
         self.item_handler: ItemHandler = item_handler
         self.scan_time = float(scan_time)
+        # How long a burn takes (independent of scan_time). Only matters for
+        # stations with a non-empty burn_type.
+        self.burn_time = float(burn_time)
 
         # Key into PLAYER_ZONES/PLAYER_CAMS, or None if this station never
         # requires a player to be standing beside it.
@@ -69,8 +73,14 @@ class Station:
         item = self._ensure_item(tag)
         return item is not None and item.state in self.type
 
-    def _progress(self, accum: float) -> float:
-        return 1.0 if self.scan_time <= 0 else min(accum / self.scan_time, 1.0)
+    def _is_burning(self, tag: int) -> bool:
+        item = self.item_handler.get_item(tag) if self.item_handler.has_item(tag) else None
+        return item is not None and item.state in self.burn_type
+
+    def _progress(self, tag: int, accum: float) -> float:
+        # Burns run on burn_time; everything else on scan_time.
+        duration = self.burn_time if self._is_burning(tag) else self.scan_time
+        return 1.0 if duration <= 0 else min(accum / duration, 1.0)
     
     def _combine(self, ids, states_list):
         """sets ids to the given state list and removes them from the ready to combine list"""
@@ -157,7 +167,7 @@ class Station:
                 continue
 
             #process completed tags
-            if self._progress(sc["accum"]) >= 1.0:
+            if self._progress(tag, sc["accum"]) >= 1.0:
                 if self.DEBUG:
                     print(f"[SCAN FINISH] Station={self.type} Tag={tag} seen_time={sc['accum']:.3f}")
                 if self.item_handler.get_item(tag).state in self.burn_type:
@@ -180,12 +190,16 @@ class Station:
                             print(f"[COMBINING] Station={self.type} Tags={i},{j} Combination={combination}")
                         self._combine([i,j], COMBINATIONS[combination])
 
-        scans_progress = {tag: self._progress(sc["accum"]) for tag, sc in self.scans.items()}
+        scans_progress = {tag: self._progress(tag, sc["accum"]) for tag, sc in self.scans.items()}
+        # A scan is a "burn" when the item's current stage is in this station's
+        # burn_type -- the UI drains the bar red instead of filling it blue.
+        burning = {tag: self._is_burning(tag) for tag in self.scans}
         self.state = self.SCANNING if self.scans else self.READY
 
         return {
             "state": self.state,
             "scans": scans_progress,   # tag -> 0..1 for every active scan
+            "burning": burning,        # tag -> True if this scan is a burn
             "completed": completed,    # tags that finished a scan this tick
             "ids": ids,
             "gated": self.player_zone is not None,

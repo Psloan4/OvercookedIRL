@@ -54,7 +54,7 @@ STAGE_COLORS = {
 
 STATION_DEFS = [
     #Station 1: Cooking
-    dict(x=7, y=110, w=155, h=322, scan_time=12,
+    dict(x=7, y=110, w=155, h=322, scan_time=12, burn_time=12,
          type=tuple(["raw_patty", "cooked_patty", "cheese_patty", "sliced_fries", "cooked_fries"]),
          burn_type=tuple(["cooked_patty", "cheese_patty", "cooked_fries"]), combinable=[],
          show_window=True, covered=None, color=STATION_COLORS["1"]),
