@@ -248,9 +248,9 @@ class StationZone(QWidget):
     tags + current item stage.
     """
 
-    def __init__(self, station_type: str, parent=None):
+    def __init__(self, station_name: str, parent=None):
         super().__init__(parent)
-        self.station_type = station_type
+        self.station_name = station_name
         self.setObjectName("StationZone")
         self.setAttribute(Qt.WA_StyledBackground, True)
 
@@ -265,7 +265,7 @@ class StationZone(QWidget):
         top = QHBoxLayout()
         top.setContentsMargins(0, 0, 0, 0)
 
-        self.name = QLabel(f"Station {station_type}")
+        self.name = QLabel(f"{station_name}")
         self.name.setObjectName("ZoneName")
 
         # Player-presence glyph for gated stations (2a/2b). Hidden for stations
@@ -409,7 +409,7 @@ class TableView(QWidget):
         tx, ty, tw, th = TABLE_REGION
         self._zones: dict[str, StationZone] = {}
         for d in STATION_DEFS:
-            zone = StationZone(d["type"], self)
+            zone = StationZone(d["name"], self)
             zone.set_zone_color(d.get("color"))
             zone.normalized_rect = (
                 (d["x"] - tx) / tw,

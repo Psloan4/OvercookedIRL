@@ -10,7 +10,7 @@ CAMERA_PORT = 8080
 
 STATION_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/0"
 FINAL_CAMERA_DEV = f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/1"
-GAME_SECONDS = 300 # in seconds
+GAME_SECONDS = 150 # in seconds
 TICK_MS = 16  # ~60 FPS UI update
 
 # --- Player presence --------------------------------------------------------
@@ -54,27 +54,35 @@ STAGE_COLORS = {
 
 STATION_DEFS = [
     #Station 1: Cooking
-    dict(x=7, y=110, w=155, h=322, scan_time=12, burn_time=12,
+    dict(name="Cooking",
+         x=7, y=110, w=155, h=322, scan_time=12, burn_time=12,
          type=tuple(["raw_patty", "cooked_patty", "cheese_patty", "sliced_fries", "cooked_fries"]),
-         burn_type=tuple(["cooked_patty", "cheese_patty", "cooked_fries"]), combinable=[],
-         show_window=True, covered=None, color=STATION_COLORS["1"]),
+         burn_type=tuple(["cooked_patty", "cheese_patty", "cooked_fries"]),
+         combinable=[],
+         color=STATION_COLORS["1"]),
     #Station 2a: Slicing
-    dict(x=7 + 155, y=110, w=253, h=155, scan_time=6,
+    dict(name="Slicing",
+         x=7 + 155, y=110, w=253, h=155, scan_time=6,
          type=tuple(["2a", "raw_potato", "cheese_block"]),
-         burn_type=tuple([]), combinable=[],
-         show_window=True, covered=50,
-         player_zone="2a", color=STATION_COLORS["2a"]),
-    #Station 2b: Combine (Combining functionality not currently implemented, currently just proccesses items)
-    dict(x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
+         burn_type=tuple([]),
+         combinable=[],
+         player_zone="2a",
+         color=STATION_COLORS["2a"]),
+    #Station 2b: Combine 
+    dict(name="Assembling",
+         x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
          type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese"]),
-         burn_type=tuple([]), combinable=["sliced_cheese",],
-         show_window=True, covered=150,
-         player_zone="2b", color=STATION_COLORS["2b"]),
+         burn_type=tuple([]),
+         combinable=["sliced_cheese", "cooked_patty"],
+         player_zone="2b",
+         color=STATION_COLORS["2b"]),
     #Station 3: Plating
-    dict(x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12,
+    dict(name="Plating",
+         x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12,
          type=tuple(["assembled_burger", "cooked_fries"]),
-         burn_type=tuple([]), combinable=[],
-         show_window=True, covered=None, color=STATION_COLORS["3"]),
+         burn_type=tuple([]),
+         combinable=[],
+         color=STATION_COLORS["3"]),
 ]
 
 FINAL_STATION_DEF = dict(
@@ -96,7 +104,7 @@ GRID_PLACEMENT = {
 
 IDS = {
     0: "BURGER",
-    1: "BURGER",
+    1: "CHEESE",
     2: "BURGER",
     3: "BURGER",
     4: "BURGER",
@@ -142,7 +150,8 @@ BUNS = [
 #List of starting states so final_station knows not to change these
 BASE_STATES = [
     "raw_patty",
-    "raw_potato"
+    "raw_potato",
+    "cheese_block",
 ]
 
 # Some check at the combining station will see if both are in the tuple
@@ -183,7 +192,7 @@ ASSET_MAP = {
         "cheese_block":     "cheese_block.png",
         "sliced_cheese":    "sliced_cheese.png",
         "cheese_patty":     "cheese_patty.png",
-        "assembled_burger":  "assembled_burger.png",
+        "assembled_burger": "assembled_burger.png",
         "complete":         "finished_burger.png",
         "burnt_patty":      "burnt_patty.png"
     },

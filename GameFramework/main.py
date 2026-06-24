@@ -47,15 +47,18 @@ class OvercookedIRLApp:
 
         self.stations: list[Station] = []
         for d in STATION_DEFS:
+            station_name = d["name"]
+            print(f"Creating {station_name}...")
             self.stations.append(
                 Station(
-                    d["x"], d["y"], d["w"], d["h"],
-                    d["scan_time"],
-                    d.get("burn_time", d["scan_time"]),
-                    d["type"],
-                    d["burn_type"],
-                    d["combinable"],
-                    self.item_handler,
+                    name=station_name,
+                    x=d["x"], y=d["y"], w=d["w"], h=d["h"],
+                    scan_time=d["scan_time"],
+                    burn_time=d.get("burn_time", d["scan_time"]),
+                    type=d["type"],
+                    burn_type=d["burn_type"],
+                    combinable=d["combinable"],
+                    item_handler=self.item_handler,
                     player_zone=d.get("player_zone"),
                 )
             )

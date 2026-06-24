@@ -15,6 +15,7 @@ class Station:
 
     def __init__(
         self,
+        name,
         x, y, w, h,
         scan_time,
         burn_time,
@@ -24,6 +25,7 @@ class Station:
         item_handler,
         player_zone=None,
     ):
+        self.name = str(name),
         self.x = x
         self.y = y
         self.w = w
@@ -109,7 +111,7 @@ class Station:
             if self.player_grace_frames >= 16: #Max number of scans player can be missing before reset
                 wiped = bool(self.scans)
                 if self.DEBUG and wiped:
-                    print(f"[SCAN RESET] Station={self.type} player left zone "
+                    print(f"[SCAN RESET] Station={self.name} player left zone "
                         f"(dropped {len(self.scans)} scan(s))")
                 self.scans.clear()
                 self.state = self.READY
@@ -135,7 +137,7 @@ class Station:
             if self._matches(tag):
                 self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
                 if self.DEBUG and (not tag in self.combine_ready):
-                    print(f"[SCAN START] Station={self.type} Tag={tag} scan_time={self.scan_time}")
+                    print(f"[SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
 
         completed: list[int] = []
 
@@ -167,7 +169,7 @@ class Station:
                 if (now - sc["last_seen"]) > self.GRACE_SECONDS:
                     if self.DEBUG:
                         print(
-                            f"[SCAN DROP] Station={self.type} Tag={tag} gone>{self.GRACE_SECONDS}s "
+                            f"[SCAN DROP] Station={self.name} Tag={tag} gone>{self.GRACE_SECONDS}s "
                             f"(lost {sc['accum']:.1f}/{self.scan_time}s)"
                         )
                     del self.scans[tag]
@@ -176,7 +178,7 @@ class Station:
             #process completed tags
             if self._progress(tag, sc["accum"]) >= 1.0:
                 if self.DEBUG:
-                    print(f"[SCAN FINISH] Station={self.type} Tag={tag} seen_time={sc['accum']:.3f}")
+                    print(f"[SCAN FINISH] Station={self.name} Tag={tag} seen_time={sc['accum']:.3f}")
                 if self.item_handler.get_item(tag).state in self.burn_type:
                     self.item_handler.burn_item(tag)
                 elif self.item_handler.get_item(tag).state in self.combinable:
@@ -195,18 +197,19 @@ class Station:
                 for combination in COMBINATIONS.keys():
                     if (i_state in combination) and (j_state in combination):
                         if self.DEBUG:
-                            print(f"[COMBINING] Station={self.type} Tags={i},{j} Combination={combination}")
+                            print(f"[COMBINING] Station={self.name} Tags={i},{j} Combination={combination}")
                         self._combine([i,j], COMBINATIONS[combination])
 
         deleted_tags = []
         for tag in self.combine_ready:
             if not tag in seen_combine_ready:
                 self.combine_ready[tag] += 1
-                if self.combine_ready[tag] > 16:
+                if self.combine_ready[tag] > 16: #number of missed frames before we forget tag
                     deleted_tags.append(tag)
+
         for tag in deleted_tags:
             if self.DEBUG:
-                print(f"[FORGETTING] Station={self.type} Tag={tag}")
+                print(f"[FORGETTING] Station={self.name} Tag={tag}")
             del self.combine_ready[tag]
 
         scans_progress = {tag: self._progress(tag, sc["accum"]) for tag, sc in self.scans.items()}
