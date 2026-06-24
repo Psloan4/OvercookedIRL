@@ -73,7 +73,7 @@ STATION_DEFS = [
          x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
          type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese"]),
          burn_type=tuple([]),
-         combinable=["sliced_cheese", "cooked_patty"],
+         combinable=["sliced_cheese",],
          player_zone="2b",
          color=STATION_COLORS["2b"]),
     #Station 3: Plating
@@ -104,7 +104,7 @@ GRID_PLACEMENT = {
 
 IDS = {
     0: "BURGER",
-    1: "CHEESE",
+    1: "BURGER",
     2: "BURGER",
     3: "BURGER",
     4: "BURGER",
