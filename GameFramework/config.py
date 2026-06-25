@@ -67,15 +67,17 @@ STATION_DEFS = [
          burn_type=tuple([]),
          combinable=[],
          player_zone="2a",
-         color=STATION_COLORS["2a"]),
+         color=STATION_COLORS["2a"],
+         cook_one = True),
     #Station 2b: Combine 
     dict(name="Assembling",
          x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
          type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese"]),
          burn_type=tuple([]),
-         combinable=["sliced_cheese",],
+         combinable=["sliced_cheese","cooked_patty"],
          player_zone="2b",
-         color=STATION_COLORS["2b"]),
+         color=STATION_COLORS["2b"],
+         cook_one=True ),
     #Station 3: Plating
     dict(name="Plating",
          x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12,
@@ -110,10 +112,10 @@ IDS = {
     4: "BURGER",
     5: "BURGER",
     6: "BURGER",
-    7: "FRIES",
-    8: "FRIES",
-    9: "FRIES",
-    10: "FRIES",
+    7: "CHEESE",
+    8: "CHEESE",
+    9: "CHEESE",
+    10: "CHEESE",
     11: "PLAYER",  # head tag, player 1
     12: "PLAYER",  # head tag, player 2
     17: "THE GHOST" #sometimes the camera hallucinates tag 17
@@ -123,7 +125,7 @@ IDS = {
 #The burnt state is placed on the end so it never occurs in regular progression
 BURGER = [
     ["raw_patty"], 
-    ["cooked_patty", "cheese_patty"], 
+    ["cooked_patty"], 
     ["assembled_burger"], 
     ["complete"],
     ["burnt_patty"]

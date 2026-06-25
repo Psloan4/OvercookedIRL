@@ -60,6 +60,7 @@ class OvercookedIRLApp:
                     combinable=d["combinable"],
                     item_handler=self.item_handler,
                     player_zone=d.get("player_zone"),
+                    cook_one=d.get("cook_one"),
                 )
             )
         self.final_station = FinalStation(
@@ -166,6 +167,7 @@ class OvercookedIRLApp:
         for station in self.stations:
             ids = [tag_id for (tag_id, cx, cy) in tags if station.contains(cx, cy)]
             present = player_present.get(station.player_zone, True)
+            target = station.target
             status = station._tick(ids, present)
             statuses[station.type] = status
             scan_progress.update(status.get("scans", {}))

@@ -24,6 +24,7 @@ class Station:
         combinable,
         item_handler,
         player_zone=None,
+        cook_one=False,
     ):
         self.name = str(name),
         self.x = x
@@ -35,14 +36,16 @@ class Station:
         self.combinable = combinable
         self.item_handler: ItemHandler = item_handler
         self.scan_time = float(scan_time)
-        # How long a burn takes (independent of scan_time). Only matters for
-        # stations with a non-empty burn_type.
         self.burn_time = float(burn_time)
 
         # Key into PLAYER_ZONES/PLAYER_CAMS, or None if this station never
         # requires a player to be standing beside it.
         self.player_zone = player_zone
         self.player_grace_frames = 0
+
+        self.cook_one = cook_one
+        self.target = None
+        self.target_grace_frames = 0
 
         # State machine
         self.state = self.READY
@@ -115,6 +118,7 @@ class Station:
                         f"(dropped {len(self.scans)} scan(s))")
                 self.scans.clear()
                 self.state = self.READY
+                self.target = None
                 return {
                     "state": self.state,
                     "scans": {},
@@ -130,18 +134,49 @@ class Station:
             self.player_grace_frames = 0
         present_ids = set(ids)
 
+        if self.cook_one:
+            #Case we have no target and need to pick a new one
+            if self.target is None:
+                for tag in ids:
+                    if self._matches(tag) and not (tag in self.combine_ready):
+                        self.target = tag
+                        break
+            if not self.target is None:
+            #Case we have a target but we don't see it
+                if not self.target in ids:
+                    self.target_grace_frames += 1
+                    if self.target_grace_frames > 16:
+                        self.target = None
+                        self.scans.clear()
+            #Case we have a target and we see it
+                for tag in ids:
+                    if (tag == self.target):
+                        self.target_grace_frames = 0
+                    if (tag != self.target) or (tag in self.combine_ready):
+                        ids.remove(tag)
+
+
         # Start a scan for any present, matching item we aren't already tracking.
-        for tag in ids:
-            if tag in self.scans:
-                continue
-            if self._matches(tag):
-                self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
-                if self.DEBUG and (not tag in self.combine_ready):
-                    print(f"[SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
+        if self.cook_one:
+            if not self.target in self.scans:
+                for tag in ids:
+                    if tag == self.target:
+                        self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
+                        if self.DEBUG:
+                            print(f"[SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
+        else:
+            for tag in ids:
+                if tag in self.scans:
+                    continue
+                if self._matches(tag):
+                    self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
+                    if self.DEBUG:
+                        print(f"[SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
 
         completed: list[int] = []
 
         seen_combine_ready = []
+
 
         for tag in list(self.scans.keys()):
             sc = self.scans[tag]
@@ -154,7 +189,7 @@ class Station:
             if (tag in self.combine_ready):
                 self.combine_ready[tag] = 0 #resets grace period if we see the tag
                 seen_combine_ready.append(tag)
-                del self.scans[tag]
+                # del self.scans[tag]
                 continue
 
             present = tag in present_ids
@@ -177,6 +212,7 @@ class Station:
 
             #process completed tags
             if self._progress(tag, sc["accum"]) >= 1.0:
+                self.target = None
                 if self.DEBUG:
                     print(f"[SCAN FINISH] Station={self.name} Tag={tag} seen_time={sc['accum']:.3f}")
                 if self.item_handler.get_item(tag).state in self.burn_type:
@@ -184,7 +220,9 @@ class Station:
                 elif self.item_handler.get_item(tag).state in self.combinable:
                     self.combine_ready[tag] = 0
                     seen_combine_ready.append(tag)
+                    break
                 else:
+                    self.target = None
                     self.item_handler.advance_item(tag)
                 completed.append(tag)
                 del self.scans[tag]
@@ -195,10 +233,14 @@ class Station:
                 i_state = self.item_handler.get_item(i).state
                 j_state = self.item_handler.get_item(j).state
                 for combination in COMBINATIONS.keys():
-                    if (i_state in combination) and (j_state in combination):
+                    if (i_state in combination) and (j_state in combination) and (i_state != j_state):
                         if self.DEBUG:
                             print(f"[COMBINING] Station={self.name} Tags={i},{j} Combination={combination}")
                         self._combine([i,j], COMBINATIONS[combination])
+                        completed.append(i)
+                        completed.append(j)
+                        del self.scans[i]
+                        del self.scans[j]
 
         deleted_tags = []
         for tag in self.combine_ready:
