@@ -19,10 +19,12 @@ PLAYER_TAG_IDS = {11, 12}   # head tags, one per player (kept clear of food ids 
 PLAYER_CAMS = {
     "2a": f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/4",
     "2b": f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/2",
+    "3":  f"http://{CAMERA_HOST}:{CAMERA_PORT}/cam/3",
 }
 PLAYER_ZONES = {
     "2a": dict(x=2, y=0,  w=632, h=421),   # camera 4
     "2b": dict(x=1, y=31, w=636, h=395),   # camera 2
+    "3":  dict(x=25, y=165, w=603, h=311), # camera 3
 }
 
 # --- Destination colours (UI guidance) --------------------------------------
@@ -84,6 +86,7 @@ STATION_DEFS = [
          type=tuple(["assembled_burger", "cooked_fries"]),
          burn_type=tuple([]),
          combinable=[],
+         player_zone="3",
          color=STATION_COLORS["3"]),
 ]
 
