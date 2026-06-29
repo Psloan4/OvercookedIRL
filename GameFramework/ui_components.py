@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QHBoxLayout,
     QProgressBar, QPushButton, QSizePolicy, QGraphicsOpacityEffect
 )
-from PySide6.QtCore import Qt, QRect, QTimer
+from PySide6.QtCore import Qt, QRect, QTimer, QVariantAnimation, QEasingCurve
 from PySide6.QtGui import QPainter, QPixmap, QColor, QFont, QBrush, QPen, QConicalGradient
 
 from station import Station
@@ -140,25 +140,83 @@ class _ItemImage(QLabel):
 
     ring_color is None (no ring), a "#rrggbb" hex string (solid ring), or the
     sentinel "rainbow" (conical-gradient ring, used for the delivery station).
+
+    Also paints a pulsing green ring while the item waits for its combine
+    partner.
     """
 
     _RAINBOW = ["#ff0000", "#ff9900", "#ffee00", "#33cc33",
                 "#3399ff", "#9933ff", "#ff0000"]
+    _CUE = "#4ade80"   # brighter green for combine cues, distinct from the ring
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.ring_color = None
+        self._waiting = False
+        self._pulse_alpha = 1.0
+
+        # Looping pulse while waiting for a combine partner -- smooth in AND out
+        # (dim -> bright -> dim), not a sawtooth.
+        self._pulse = QVariantAnimation(self)
+        self._pulse.setKeyValueAt(0.0, 0.3)
+        self._pulse.setKeyValueAt(0.5, 1.0)
+        self._pulse.setKeyValueAt(1.0, 0.3)
+        self._pulse.setDuration(900)
+        self._pulse.setLoopCount(-1)
+        self._pulse.setEasingCurve(QEasingCurve.InOutSine)
+        self._pulse.valueChanged.connect(self._on_pulse)
+
+    def _on_pulse(self, v):
+        self._pulse_alpha = float(v)
+        self.update()
+
+    def set_waiting(self, waiting: bool):
+        if waiting == self._waiting:
+            return
+        self._waiting = waiting
+        if waiting:
+            self._pulse.start()
+        else:
+            self._pulse.stop()
+            self.update()
+
+    def _draw_ring(self, p: QPainter, pen: QPen, inset: int):
+        rect = self.rect().adjusted(inset, inset, -inset, -inset)
+        p.setPen(pen)
+        p.setBrush(Qt.NoBrush)
+        p.drawEllipse(rect)
 
     def paintEvent(self, event):
         super().paintEvent(event)
+        show_flash = self._flash_alpha > 0.001
+
+        # Combine cues replace the ring entirely while active, so they aren't
+        # masked by the (usually green) destination ring underneath.
+        if show_flash:
+            p = QPainter(self)
+            p.setRenderHint(QPainter.Antialiasing)
+            c = QColor(self._CUE)
+            c.setAlphaF(self._flash_alpha)
+            self._draw_ring(p, QPen(c, 10), 4)
+            p.end()
+            return
+
+        if self._waiting:
+            p = QPainter(self)
+            p.setRenderHint(QPainter.Antialiasing)
+            c = QColor(self._CUE)
+            c.setAlphaF(self._pulse_alpha)
+            self._draw_ring(p, QPen(c, 6), 3)
+            p.end()
+            return
+
+        # Otherwise, the normal destination ring (solid colour or rainbow).
         if not self.ring_color:
             return
-        w = 4  # ring thickness
-        inset = w // 2 + 1
-        rect = self.rect().adjusted(inset, inset, -inset, -inset)
-
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
+        w = 4
+        rect = self.rect().adjusted(w // 2 + 1, w // 2 + 1, -(w // 2 + 1), -(w // 2 + 1))
         if self.ring_color == "rainbow":
             grad = QConicalGradient(rect.center(), 0)
             n = len(self._RAINBOW)
@@ -226,19 +284,29 @@ class TagIcon(QWidget):
         self.img.setPixmap(pm)
         self.adjustSize()
 
-    def set_progress(self, progress, burning=False):
+    def set_progress(self, progress, burning=False, combining=False):
         if progress is None:
             self.bar.hide()
             return
         self.bar.show()
+        # Burn takes visual priority over combine.
+        combining = combining and not burning
         p = max(0.0, min(1.0, float(progress)))
-        # Normal scan fills blue left->right. A burn drains red full->empty:
-        # value goes 100->0, so the bar empties from the right (right-to-left).
+        # Normal scan fills blue, combine fills green; both left->right. A burn
+        # drains red full->empty (value 100->0, empties right-to-left).
         self.bar.setValue(int((1.0 - p) * 100) if burning else int(p * 100))
         if self.bar.property("burning") != burning:
             self.bar.setProperty("burning", burning)
-            self.bar.style().unpolish(self.bar)
-            self.bar.style().polish(self.bar)
+        if self.bar.property("combining") != combining:
+            self.bar.setProperty("combining", combining)
+        self.bar.style().unpolish(self.bar)
+        self.bar.style().polish(self.bar)
+
+    def set_waiting(self, waiting: bool):
+        self.img.set_waiting(waiting)
+
+    def flash_combine(self):
+        self.img.flash_combine()
 
 
 class StationZone(QWidget):
@@ -467,7 +535,15 @@ class TableView(QWidget):
                 icon.show()
 
             icon.set_appearance(entry.get("type"), entry.get("state"), icon_size, entry.get("color"))
-            icon.set_progress(entry.get("progress"), entry.get("burning", False))
+            waiting = entry.get("waiting", False)
+            icon.set_waiting(waiting)
+            if waiting:
+                # Waiting for a partner: show the pulsing ring, not a scan bar.
+                icon.set_progress(None)
+            else:
+                icon.set_progress(entry.get("progress"), entry.get("burning", False), entry.get("combining", False))
+            if entry.get("flash"):
+                icon.flash_combine()
             icon.nx = entry["nx"]
             icon.ny = entry["ny"]
             icon.raise_()  # keep items above the station zones

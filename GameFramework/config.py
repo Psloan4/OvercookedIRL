@@ -42,6 +42,8 @@ STAGE_DESTINATION = {
     "raw_patty":       "1",   # cook
     "sliced_fries":    "1",   # cook
     "raw_potato":      "2a",  # slice
+    "cheese_block":    "2a",  # slice
+    "sliced_cheese":   "2b",  # combine
     "cheese_patty":    "2b",  # combine
     "assembled_burger": "3",   # plate
     "cooked_fries":    "3",   # plate
@@ -73,7 +75,7 @@ STATION_DEFS = [
          cook_one = True),
     #Station 2b: Combine 
     dict(name="Assembling",
-         x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
+         x=7 + 155, y=110 + 155, w=253, h=167, scan_time=2,
          type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese"]),
          burn_type=tuple([]),
          combinable=["sliced_cheese","cooked_patty"],

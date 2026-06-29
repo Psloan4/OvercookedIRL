@@ -167,4 +167,8 @@ QProgressBar#ScanBar::chunk {
 QProgressBar#ScanBar[burning="true"]::chunk {
     background: #dc2626;
 }
+/* Combining: green bar (matches the Combining station colour). */
+QProgressBar#ScanBar[combining="true"]::chunk {
+    background: #22c55e;
+}
 """
