@@ -40,9 +40,11 @@ STATION_COLORS = {
 # Item stage -> the station it should be taken to next.
 STAGE_DESTINATION = {
     "raw_patty":       "1",   # cook
+    "cheese_block":     "2a",  # slice
     "sliced_fries":    "1",   # cook
     "raw_potato":      "2a",  # slice
     "cheese_patty":    "2b",  # combine
+    "sliced_cheese":   "2b",  # combine
     "assembled_burger": "3",   # plate
     "cooked_fries":    "3",   # plate
     "cooked_patty":    "2b",  # combine (same path as cheese_patty)
