@@ -284,12 +284,18 @@ class Station:
         # A scan is a "burn" when the item's current stage is in this station's
         # burn_type -- the UI drains the bar red instead of filling it blue.
         burning = {tag: self._is_burning(tag) for tag in self.scans}
+        combining = {
+            tag: self.item_handler.get_item(tag).state in self.combinable
+            for tag in self.scans
+            if self.item_handler.has_item(tag)
+        }
         self.state = self.SCANNING if self.scans else self.READY
 
         return {
             "state": self.state,
             "scans": scans_progress,   # tag -> 0..1 for every active scan
             "burning": burning,        # tag -> True if this scan is a burn
+            "combining": combining,    # tag -> True if this scan prepares a combination
             "completed": completed,    # tags that finished a scan this tick
             "ids": ids,
             "gated": self.player_zone is not None,

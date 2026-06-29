@@ -163,6 +163,9 @@ QProgressBar#ScanBar::chunk {
     background: #2563eb;
     border-radius: 4px;
 }
+QProgressBar#ScanBar[combining="true"]::chunk {
+    background: #22c55e;
+}
 /* Burning: red bar that drains full -> empty instead of filling. */
 QProgressBar#ScanBar[burning="true"]::chunk {
     background: #dc2626;
