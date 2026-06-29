@@ -82,12 +82,13 @@ STATION_DEFS = [
          cook_one=True ),
     #Station 3: Plating
     dict(name="Plating",
-         x=7 + 155 + 253, y=110, w=196, h=322, scan_time=12,
-         type=tuple(["assembled_burger", "cooked_fries"]),
-         burn_type=tuple([]),
+         x=7 + 155 + 253, y=110, w=196, h=322, scan_time=6, burn_time = 12,
+         type=tuple(["assembled_burger", "cooked_fries", "cone", "ice_cream"]),
+         burn_type=tuple(["ice_cream"]),
          combinable=[],
          player_zone="3",
-         color=STATION_COLORS["3"]),
+         color=STATION_COLORS["3"],
+         cook_one=True),
 ]
 
 FINAL_STATION_DEF = dict(
@@ -111,11 +112,11 @@ IDS = {
     0: "BURGER",
     1: "BURGER",
     2: "BURGER",
-    3: "BURGER",
-    4: "BURGER",
-    5: "BURGER",
-    6: "BURGER",
-    7: "CHEESE",
+    3: "CONE",
+    4: "CONE",
+    5: "CONE",
+    6: "CONE",
+    7: "CONE",
     8: "CHEESE",
     9: "CHEESE",
     10: "CHEESE",
@@ -126,37 +127,20 @@ IDS = {
 
 #Recipies for each food type -- progresses to a random item in the next step until complete.
 #The burnt state is placed on the end so it never occurs in regular progression
-BURGER = [
-    ["raw_patty"], 
-    ["cooked_patty"], 
-    ["assembled_burger"], 
-    ["complete"],
-    ["burnt_patty"]
-]
-
-FRIES = [
-    ["raw_potato"],
-    ["sliced_fries"],
-    ["cooked_fries"], 
-    ["complete"],
-    ["burnt_fries"]
-]
-
-CHEESE = [
-    ["cheese_block"],
-    ["sliced_cheese"]
-]
-
-BUNS = [
-    ["fresh_bun"],
-    ["sliced_bun"]
-]
+RECIPIES = {
+    "BURGER":   [["raw_patty"], ["cooked_patty"], ["assembled_burger"], ["complete"], ["burnt_patty"]],
+    "FRIES":    [["raw_potato"], ["sliced_fries"], ["cooked_fries"], ["complete"], ["burnt_fries"]],
+    "CHEESE":   [["cheese_block"], ["sliced_cheese"]],
+    "BUNS":     [["fresh_bun"], ["sliced_bun"]],
+    "CONE":     [["cone"], ["ice_cream"], ["melted"]],
+}
 
 #List of starting states so final_station knows not to change these
 BASE_STATES = [
     "raw_patty",
     "raw_potato",
     "cheese_block",
+    "cone"
 ]
 
 # Some check at the combining station will see if both are in the tuple
@@ -200,6 +184,11 @@ ASSET_MAP = {
         "assembled_burger": "assembled_burger.png",
         "complete":         "finished_burger.png",
         "burnt_patty":      "burnt_patty.png"
+    },
+    "CONE": {
+        "cone":             "lord_crandy_bw.png",
+        "ice_cream":        "potato.png",
+        "melted":           "poop_potato.png",
     },
     "THE GHOST": {
         "inert":            "lord_crandy_bw.png"

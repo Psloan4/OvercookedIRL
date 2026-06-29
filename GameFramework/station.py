@@ -93,6 +93,16 @@ class Station:
             self.item_handler.change_states(id, states_list.copy())
             del self.combine_ready[id]
 
+    def _filter_burn_scans(self):
+        """removes all tags from scans except those that are burning, returns True if any tags are deleted"""
+        to_delete = []
+        for tag in self.scans:
+            if not self._is_burning(tag):
+                to_delete.append(tag)
+        for tag in to_delete:
+            del self.scans[tag]
+        return bool(len(to_delete))
+
 
     def _tick(self, ids: list[int], player_present: bool = True):
         """
@@ -107,38 +117,43 @@ class Station:
         """
         now = time.time()
 
+    
+        reset = False
+
         # No player beside the station -> wipe all progress. Scans restart from
         # zero when the player returns and the item is still present.
         if not player_present:
             self.player_grace_frames += 1
             if self.player_grace_frames >= 16: #Max number of scans player can be missing before reset
-                wiped = bool(self.scans)
+                # self.scans.clear()
+                wiped = self._filter_burn_scans()
                 if self.DEBUG and wiped:
                     print(f"[SCAN RESET] Station={self.name} player left zone "
                         f"(dropped {len(self.scans)} scan(s))")
-                self.scans.clear()
                 self.state = self.READY
                 self.target = None
-                return {
-                    "state": self.state,
-                    "scans": {},
-                    "completed": [],
-                    "ids": ids,
-                    "gated": self.player_zone is not None,
-                    "player_present": False,
-                    # True only on the tick a scan was actually lost to the player
-                    # leaving -- the UI uses this to flash the zone red.
-                    "reset_by_player": wiped,
-                }
+                reset = wiped
+                # return {
+                #     "state": self.state,
+                #     "scans": self.scans,
+                #     "completed": [],
+                #     "ids": ids,
+                #     "gated": self.player_zone is not None,
+                #     "player_present": False,
+                #     # True only on the tick a scan was actually lost to the player
+                #     # leaving -- the UI uses this to flash the zone red.
+                #     "reset_by_player": wiped,
+                # }
         else:
             self.player_grace_frames = 0
         present_ids = set(ids)
 
-        if self.cook_one:
+        #When in cook_one mode, filter out all scans that aren't the target, ready to combine, or burnable
+        if self.cook_one and player_present:
             #Case we have no target and need to pick a new one
             if self.target is None:
                 for tag in ids:
-                    if self._matches(tag) and not (tag in self.combine_ready):
+                    if self._matches(tag) and not (tag in self.combine_ready) and not (self.item_handler.item_state(tag) in self.burn_type):
                         self.target = tag
                         break
             if not self.target is None:
@@ -152,39 +167,50 @@ class Station:
                 for tag in ids:
                     if (tag == self.target):
                         self.target_grace_frames = 0
-                    if (tag != self.target) or (tag in self.combine_ready):
-                        ids.remove(tag)
+                    if (tag != self.target):
+                        if (tag in self.combine_ready) or (self._is_burning(tag)):
+                            continue
+                        else:
+                            ids.remove(tag)
 
 
         # Start a scan for any present, matching item we aren't already tracking.
         if self.cook_one:
-            if not self.target in self.scans:
-                for tag in ids:
-                    if tag == self.target:
-                        self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
-                        if self.DEBUG:
-                            print(f"[SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
+            for tag in ids:
+                if tag in self.scans:
+                    continue
+                if (tag == self.target) and (player_present):
+                    self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
+                    if self.DEBUG:
+                        print(f"[SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
+                if (self._is_burning(tag)) and (self._matches(tag)):
+                    self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
+                    if self.DEBUG:
+                        print(f"[BURN SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
         else:
             for tag in ids:
                 if tag in self.scans:
                     continue
-                if self._matches(tag):
+                if self._matches(tag) and (player_present):
                     self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
                     if self.DEBUG:
                         print(f"[SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
+                if (self._is_burning(tag)) and (self._matches(tag)):
+                    self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
+                    if self.DEBUG:
+                        print(f"[BURN SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
 
         completed: list[int] = []
 
         seen_combine_ready = []
 
-
         for tag in list(self.scans.keys()):
             sc = self.scans[tag]
 
             # Item advanced (or is waiting to combine) -> this scan is finished/irrelevant.
-            if (not self._matches(tag)):
-                del self.scans[tag]
-                continue
+            # if (not self._matches(tag)):
+            #     del self.scans[tag]
+            #     continue
 
             if (tag in self.combine_ready):
                 self.combine_ready[tag] = 0 #resets grace period if we see the tag
@@ -267,6 +293,6 @@ class Station:
             "completed": completed,    # tags that finished a scan this tick
             "ids": ids,
             "gated": self.player_zone is not None,
-            "player_present": True,    # reached here only when present
-            "reset_by_player": False,
+            "player_present": player_present,
+            "reset_by_player": reset,
         }

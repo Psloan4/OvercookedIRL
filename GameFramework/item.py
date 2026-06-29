@@ -1,16 +1,14 @@
 import random
-from config import IDS, BURGER, FRIES, CHEESE
+import copy
+from config import IDS, RECIPIES
 
 class Item:
 
     def __init__(self, tag_id):
         self.type = IDS[tag_id]
-        if self.type == "BURGER":
-            states_list = BURGER.copy()
-        elif self.type == "FRIES":
-            states_list = FRIES.copy()
-        elif self.type == "CHEESE":
-            states_list = CHEESE.copy()
+        if self.type in RECIPIES:
+            recipies = copy.deepcopy(RECIPIES)
+            states_list = recipies[self.type]
         else:
             # Non-food tags (PLAYER, THE GHOST, ...) aren't cookable; give them
             # an inert state so constructing one can never throw.
@@ -43,6 +41,12 @@ class ItemHandler:
     
     def get_item(self, tag_id) -> Item:
         return self.items[tag_id]
+    
+    def item_state(self, tag_id):
+        if self.has_item(tag_id):
+            return self.get_item(tag_id).state
+        else:
+            return None
 
 
     def create_item(self, tag_id):
