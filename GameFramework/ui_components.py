@@ -188,19 +188,9 @@ class _ItemImage(QLabel):
 
     def paintEvent(self, event):
         super().paintEvent(event)
-        show_flash = self._flash_alpha > 0.001
 
-        # Combine cues replace the ring entirely while active, so they aren't
-        # masked by the (usually green) destination ring underneath.
-        if show_flash:
-            p = QPainter(self)
-            p.setRenderHint(QPainter.Antialiasing)
-            c = QColor(self._CUE)
-            c.setAlphaF(self._flash_alpha)
-            self._draw_ring(p, QPen(c, 10), 4)
-            p.end()
-            return
-
+        # The waiting pulse replaces the ring while active, so it isn't masked
+        # by the (usually green) destination ring underneath.
         if self._waiting:
             p = QPainter(self)
             p.setRenderHint(QPainter.Antialiasing)
