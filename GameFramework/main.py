@@ -164,6 +164,7 @@ class OvercookedIRLApp:
         scan_progress: dict[int, float] = {}
         burning_map: dict[int, bool] = {}
         combining_map: dict[int, bool] = {}
+        ready_set: set[int] = set()
         statuses: dict[str, dict] = {}
         for station in self.stations:
             ids = [tag_id for (tag_id, cx, cy) in tags if station.contains(cx, cy)]
@@ -174,13 +175,14 @@ class OvercookedIRLApp:
             scan_progress.update(status.get("scans", {}))
             burning_map.update(status.get("burning", {}))
             combining_map.update(status.get("combining", {}))
+            ready_set.update(status.get("combine_ready", {}))
 
         final_status = self.final_station._tick()
         for tag in final_status.get("delivered", []):
             self.inc_points(10)
 
         self.game_page.update_stations(statuses, self.item_handler)
-        self.game_page.update_tags(self._build_render_list(tags, scan_progress, burning_map, combining_map))
+        self.game_page.update_tags(self._build_render_list(tags, scan_progress, burning_map, combining_map, ready_set))
 
     def _detect_tags(self, frame) -> list[tuple[int, float, float]]:
         """Return (tag_id, center_x, center_y) for every tag in the frame."""
@@ -214,7 +216,8 @@ class OvercookedIRLApp:
 
     def _build_render_list(self, tags, scan_progress: dict[int, float],
                            burning_map: dict[int, bool],
-                           combining_map: dict[int, bool]) -> list[dict]:
+                           combining_map: dict[int, bool],
+                           ready_set: set[int]) -> list[dict]:
         """Map detected tags to normalized table positions (+ type/stage) for the UI."""
         tx, ty, tw, th = TABLE_REGION
 
@@ -242,6 +245,7 @@ class OvercookedIRLApp:
                 "color": STAGE_COLORS.get(item_state),
                 "burning": burning_map.get(tag_id, False),
                 "combining": combining_map.get(tag_id, False),
+                "ready": tag_id in ready_set,
             })
         return render_list
 
