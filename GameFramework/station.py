@@ -133,17 +133,7 @@ class Station:
                 self.state = self.READY
                 self.target = None
                 reset = wiped
-                # return {
-                #     "state": self.state,
-                #     "scans": self.scans,
-                #     "completed": [],
-                #     "ids": ids,
-                #     "gated": self.player_zone is not None,
-                #     "player_present": False,
-                #     # True only on the tick a scan was actually lost to the player
-                #     # leaving -- the UI uses this to flash the zone red.
-                #     "reset_by_player": wiped,
-                # }
+                self.combine_ready.clear()
         else:
             self.player_grace_frames = 0
         present_ids = set(ids)
@@ -203,20 +193,13 @@ class Station:
         completed: list[int] = []
 
         seen_combine_ready = []
-
-        for tag in list(self.scans.keys()):
-            sc = self.scans[tag]
-
-            # Item advanced (or is waiting to combine) -> this scan is finished/irrelevant.
-            # if (not self._matches(tag)):
-            #     del self.scans[tag]
-            #     continue
-
+        for tag in ids:
             if (tag in self.combine_ready):
                 self.combine_ready[tag] = 0 #resets grace period if we see the tag
                 seen_combine_ready.append(tag)
-                # del self.scans[tag]
-                continue
+
+        for tag in list(self.scans.keys()):
+            sc = self.scans[tag]
 
             present = tag in present_ids
 
@@ -246,7 +229,6 @@ class Station:
                 elif self.item_handler.get_item(tag).state in self.combinable:
                     self.combine_ready[tag] = 0
                     seen_combine_ready.append(tag)
-                    break
                 else:
                     self.target = None
                     self.item_handler.advance_item(tag)
@@ -259,14 +241,12 @@ class Station:
                 i_state = self.item_handler.get_item(i).state
                 j_state = self.item_handler.get_item(j).state
                 for combination in COMBINATIONS.keys():
-                    if (i_state in combination) and (j_state in combination) and (i_state != j_state):
+                    if (i_state != j_state) and (i_state in combination) and (j_state in combination):
                         if self.DEBUG:
                             print(f"[COMBINING] Station={self.name} Tags={i},{j} Combination={combination}")
                         self._combine([i,j], COMBINATIONS[combination])
                         completed.append(i)
                         completed.append(j)
-                        del self.scans[i]
-                        del self.scans[j]
 
         deleted_tags = []
         for tag in self.combine_ready:
@@ -295,4 +275,5 @@ class Station:
             "gated": self.player_zone is not None,
             "player_present": player_present,
             "reset_by_player": reset,
-        }
+            "combine_ready": self.combine_ready
+         }

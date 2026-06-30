@@ -377,6 +377,11 @@ class StationZone(QWidget):
         ids = status.get("ids")
         if ids:
             lines.append(f"Tags: {list(ids)}")
+    #For Debugging purposes, will likely be removed later
+        combine_ready = status.get("combine_ready")
+        if combine_ready:
+            lines.append(f"Ready to combine: {list(combine_ready.keys())}")
+    #-----
         self.info.setText("\n".join(lines))
 
     def reset(self):
