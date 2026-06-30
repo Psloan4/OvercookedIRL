@@ -167,4 +167,7 @@ QProgressBar#ScanBar::chunk {
 QProgressBar#ScanBar[burning="true"]::chunk {
     background: #dc2626;
 }
+QProgressBar#ScanBar[combining="true"]::chunk {
+    background: #22c55e;
+}
 """
