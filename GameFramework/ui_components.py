@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QHBoxLayout,
     QProgressBar, QPushButton, QSizePolicy, QGraphicsOpacityEffect
 )
-from PySide6.QtCore import Qt, QRect, QTimer
+from PySide6.QtCore import Qt, QRect, QTimer, QVariantAnimation, QEasingCurve
 from PySide6.QtGui import QPainter, QPixmap, QColor, QFont, QBrush, QPen, QConicalGradient
 
 from station import Station
@@ -148,12 +148,49 @@ class _ItemImage(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.ring_color = None
+        self._ready = False
+        self._pulse_alpha = 1.0
+        self._pulse = QVariantAnimation(self)
+        self._pulse.setKeyValueAt(0.0, 0.3)
+        self._pulse.setKeyValueAt(0.5, 1.0)
+        self._pulse.setKeyValueAt(1.0, 0.3)
+        self._pulse.setDuration(900)
+        self._pulse.setLoopCount(-1)
+        self._pulse.setEasingCurve(QEasingCurve.InOutSine)
+        self._pulse.valueChanged.connect(self._on_pulse)
+
+    def _on_pulse(self, v):
+        self._pulse_alpha = float(v)
+        self.update()
+
+    def set_ready(self, ready):
+        if ready == self._ready:
+            return
+        self._ready = ready
+        if ready:
+            self._pulse.start()
+        else:
+            self._pulse.stop()
+            self.update()
 
     def paintEvent(self, event):
         super().paintEvent(event)
+        if self._ready:
+            w = 5
+            inset = w // 2 + 1
+            rect = self.rect().adjusted(inset, inset, -inset, -inset)
+            p = QPainter(self)
+            p.setRenderHint(QPainter.Antialiasing)
+            c = QColor("#22c55e")
+            c.setAlphaF(self._pulse_alpha)
+            p.setPen(QPen(c, w))
+            p.setBrush(Qt.NoBrush)
+            p.drawEllipse(rect)
+            p.end()
+            return
         if not self.ring_color:
             return
-        w = 4  # ring thickness
+        w = 4
         inset = w // 2 + 1
         rect = self.rect().adjusted(inset, inset, -inset, -inset)
 
@@ -226,17 +263,19 @@ class TagIcon(QWidget):
         self.img.setPixmap(pm)
         self.adjustSize()
 
-    def set_progress(self, progress, burning=False):
+    def set_ready(self, ready):
+        self.img.set_ready(ready)
+
+    def set_progress(self, progress, burning=False, combining=False):
         if progress is None:
             self.bar.hide()
             return
         self.bar.show()
         p = max(0.0, min(1.0, float(progress)))
-        # Normal scan fills blue left->right. A burn drains red full->empty:
-        # value goes 100->0, so the bar empties from the right (right-to-left).
         self.bar.setValue(int((1.0 - p) * 100) if burning else int(p * 100))
-        if self.bar.property("burning") != burning:
+        if self.bar.property("burning") != burning or self.bar.property("combining") != combining:
             self.bar.setProperty("burning", burning)
+            self.bar.setProperty("combining", combining)
             self.bar.style().unpolish(self.bar)
             self.bar.style().polish(self.bar)
 
@@ -472,7 +511,8 @@ class TableView(QWidget):
                 icon.show()
 
             icon.set_appearance(entry.get("type"), entry.get("state"), icon_size, entry.get("color"))
-            icon.set_progress(entry.get("progress"), entry.get("burning", False))
+            icon.set_progress(entry.get("progress"), entry.get("burning", False), entry.get("combining", False))
+            icon.set_ready(entry.get("ready", False))
             icon.nx = entry["nx"]
             icon.ny = entry["ny"]
             icon.raise_()  # keep items above the station zones
