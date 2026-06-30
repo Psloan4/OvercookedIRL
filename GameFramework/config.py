@@ -83,8 +83,8 @@ STATION_DEFS = [
     #Station 3: Plating
     dict(name="Plating",
          x=7 + 155 + 253, y=110, w=196, h=322, scan_time=6, burn_time = 12,
-         type=tuple(["assembled_burger", "cooked_fries", "cone", "ice_cream"]),
-         burn_type=tuple(["ice_cream"]),
+         type=tuple(["assembled_burger", "cooked_fries", "cone", "vanilla", "chocolate", "strawberry"]),
+         burn_type=tuple(["vanilla", "chocolate", "strawberry"]),
          combinable=[],
          player_zone="3",
          color=STATION_COLORS["3"],
@@ -132,7 +132,7 @@ RECIPIES = {
     "FRIES":    [["raw_potato"], ["sliced_fries"], ["cooked_fries"], ["complete"], ["burnt_fries"]],
     "CHEESE":   [["cheese_block"], ["sliced_cheese"]],
     "BUNS":     [["fresh_bun"], ["sliced_bun"]],
-    "CONE":     [["cone"], ["ice_cream"], ["melted"]],
+    "CONE":     [["cone"], ["vanilla", "chocolate", "strawberry"]]
 }
 
 #List of starting states so final_station knows not to change these
@@ -186,9 +186,13 @@ ASSET_MAP = {
         "burnt_patty":      "burnt_patty.png"
     },
     "CONE": {
-        "cone":             "lord_crandy_bw.png",
-        "ice_cream":        "potato.png",
-        "melted":           "poop_potato.png",
+        "cone":             "cone.png",
+        "vanilla":          "vanilla.png",
+        "chocolate":        "chocolate.png",
+        "strawberry":       "strawberry.png",
+        "vanilla_melted":   "vanilla_melted.png",
+        "chocolate_melted": "chocolate_melted.png",
+        "strawberry_melted":"strawberry_melted.png",
     },
     "THE GHOST": {
         "inert":            "lord_crandy_bw.png"

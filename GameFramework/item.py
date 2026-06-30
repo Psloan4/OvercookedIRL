@@ -20,7 +20,10 @@ class Item:
         self.state = random.choice(self.future_states.pop(0))
 
     def burn(self):
-        self.state = self.future_states.pop(-1)[0]
+        if self.type == "CONE":
+            self.state = self.state + "_melted"
+        else:
+            self.state = self.future_states.pop(-1)[0]
         self.future_states = []
 
     def change_states(self, states_list):
