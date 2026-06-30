@@ -45,6 +45,7 @@ STAGE_DESTINATION = {
     "cheese_block":      "2a",  # slice
     "cheese_patty":    "2b",  # combine
     "sliced_cheese":   "2b",  # combine
+    "cone":            "3",   # plate
     "assembled_burger": "3",   # plate
     "cooked_fries":    "3",   # plate
     "cooked_patty":    "2b",  # combine (same path as cheese_patty)
@@ -134,7 +135,7 @@ RECIPIES = {
     "FRIES":    [["raw_potato"], ["sliced_fries"], ["cooked_fries"], ["complete"], ["burnt_fries"]],
     "CHEESE":   [["cheese_block"], ["sliced_cheese"]],
     "BUNS":     [["fresh_bun"], ["sliced_bun"]],
-    "CONE":     [["cone"], ["vanilla", "chocolate", "strawberry"]]
+    "CONE":     [["cone"], ["vanilla", "chocolate", "strawberry"], ["complete"], ["vanilla_melted", "chocolate_melted", "strawberry_melted"]],
 }
 
 #List of starting states so final_station knows not to change these
@@ -149,10 +150,7 @@ BASE_STATES = [
 COMBINATIONS = {
     frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_burger"],["complete"],["burnt_patty"]],
     frozenset({"cooked_patty", "sliced_bun"}): [["assembled_burger"],["complete"]],
-
     frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete"]],
-
-
 }
 
 # --- Spatial table view -----------------------------------------------------
