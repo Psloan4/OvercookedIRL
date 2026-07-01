@@ -102,6 +102,9 @@ class Station:
         for tag in to_delete:
             del self.scans[tag]
         return bool(len(to_delete))
+    
+        
+
 
 
     def _tick(self, ids: list[int], player_present: bool = True):
@@ -165,30 +168,24 @@ class Station:
 
 
         # Start a scan for any present, matching item we aren't already tracking.
-        if self.cook_one:
-            for tag in ids:
-                if tag in self.scans:
-                    continue
+
+        for tag in ids:
+            if tag in self.scans:
+                continue
+            if self.cook_one:
                 if (tag == self.target) and (player_present):
                     self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
                     if self.DEBUG:
                         print(f"[SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
-                if (self._is_burning(tag)) and (self._matches(tag)):
-                    self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
-                    if self.DEBUG:
-                        print(f"[BURN SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
-        else:
-            for tag in ids:
-                if tag in self.scans:
-                    continue
+            else:
                 if self._matches(tag) and (player_present):
                     self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
                     if self.DEBUG:
                         print(f"[SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
-                if (self._is_burning(tag)) and (self._matches(tag)):
-                    self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
-                    if self.DEBUG:
-                        print(f"[BURN SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
+            if (self._is_burning(tag)) and (self._matches(tag)):
+                self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
+                if self.DEBUG:
+                    print(f"[BURN SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
 
         completed: list[int] = []
 

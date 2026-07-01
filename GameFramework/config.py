@@ -37,26 +37,6 @@ STATION_COLORS = {
     "4":  "rainbow",   # Delivery  (rainbow ring; no on-table zone to tint)
 }
 
-# Item stage -> the station it should be taken to next.
-STAGE_DESTINATION = {
-    "raw_patty":       "1",   # cook
-    "sliced_fries":    "1",   # cook
-    "raw_potato":      "2a",  # slice
-    "cheese_block":      "2a",  # slice
-    "cheese_patty":    "2b",  # combine
-    "sliced_cheese":   "2b",  # combine
-    "cone":            "3",   # plate
-    "assembled_burger": "3",   # plate
-    "cooked_fries":    "3",   # plate
-    "cooked_patty":    "2b",  # combine (same path as cheese_patty)
-    "complete":        "4",   # deliver
-}
-
-# Item stage -> colour of its destination station (used to tint item rings).
-STAGE_COLORS = {
-    stage: STATION_COLORS[dest] for stage, dest in STAGE_DESTINATION.items()
-}
-
 STATION_DEFS = [
     #Station 1: Cooking
     dict(name="Cooking",
@@ -117,7 +97,7 @@ IDS = {
     2: "BURGER",
     3: "CONE",
     4: "CONE",
-    5: "CONE",
+    5: "FRIES",
     6: "CONE",
     7: "CONE",
     8: "CHEESE",
@@ -130,12 +110,13 @@ IDS = {
 
 #Recipies for each food type -- progresses to a random item in the next step until complete.
 #The burnt state is placed on the end so it never occurs in regular progression
+#Cone uses it's own system of the burnt state to ensure that the color is the same when it melts, seen in item.py
 RECIPIES = {
-    "BURGER":   [["raw_patty"], ["cooked_patty"], ["assembled_burger"], ["complete"], ["burnt_patty"]],
-    "FRIES":    [["raw_potato"], ["sliced_fries"], ["cooked_fries"], ["complete"], ["burnt_fries"]],
+    "BURGER":   [["raw_patty"], ["cooked_patty"], ["assembled_burger"], ["complete_burger"], ["burnt_patty"]],
+    "FRIES":    [["raw_potato"], ["sliced_fries"], ["cooked_fries"], ["complete_fries"], ["burnt_fries"]],
     "CHEESE":   [["cheese_block"], ["sliced_cheese"]],
     "BUNS":     [["fresh_bun"], ["sliced_bun"]],
-    "CONE":     [["cone"], ["vanilla", "chocolate", "strawberry"], ["complete"], ["vanilla_melted", "chocolate_melted", "strawberry_melted"]],
+    "CONE":     [["cone"], ["vanilla", "chocolate", "strawberry"]],
 }
 
 #List of starting states so final_station knows not to change these
@@ -146,11 +127,44 @@ BASE_STATES = [
     "cone"
 ]
 
+#List of states that are complete and should score points when returned to the final station
+COMPLETE_STATES = [
+    "complete_burger",
+    "complete_fries",
+    "vanilla",
+    "chocolate",
+    "strawberry",
+]
+
 # Some check at the combining station will see if both are in the tuple
 COMBINATIONS = {
-    frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_burger"],["complete"],["burnt_patty"]],
-    frozenset({"cooked_patty", "sliced_bun"}): [["assembled_burger"],["complete"]],
+    frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_burger"],["complete_burger"],["burnt_patty"]],
+    frozenset({"cooked_patty", "sliced_bun"}): [["assembled_burger"],["complete_burger"]],
     frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete"]],
+}
+
+# Item stage -> the station it should be taken to next.
+STAGE_DESTINATION = {
+    "raw_patty":       "1",   # cook
+    "sliced_fries":    "1",   # cook
+    "raw_potato":      "2a",  # slice
+    "cheese_block":      "2a",  # slice
+    "cheese_patty":    "2b",  # combine
+    "sliced_cheese":   "2b",  # combine
+    "cone":            "3",   # plate
+    "assembled_burger": "3",   # plate
+    "cooked_fries":    "3",   # plate
+    "cooked_patty":    "2b",  # combine (same path as cheese_patty)
+    "complete":        "4",   # deliver
+}
+
+#Sets the destination of all complete states to the delivery station
+for state in COMPLETE_STATES:
+    STAGE_DESTINATION[state] = "4"
+
+# Item stage -> colour of its destination station (used to tint item rings).
+STAGE_COLORS = {
+    stage: STATION_COLORS[dest] for stage, dest in STAGE_DESTINATION.items()
 }
 
 # --- Spatial table view -----------------------------------------------------
@@ -167,14 +181,14 @@ ASSET_MAP = {
         "cooked_patty":     "cooked_patty.png",
         "cheese_patty":     "cheese_patty.png",
         "assembled_burger":  "assembled_burger.png",
-        "complete":         "finished_burger.png",
+        "complete_burger":         "finished_burger.png",
         "burnt_patty":      "burnt_patty.png"
     },
     "FRIES": {
         "raw_potato":       "potato.png",
         "sliced_fries":     "raw_fries.png",
         "cooked_fries":     "cooked_fries.png",
-        "complete":         "finished_fries.png",
+        "complete_fries":         "finished_fries.png",
         "burnt_fries":      "burnt_fries.png"
     },
     "CHEESE": {
@@ -182,7 +196,7 @@ ASSET_MAP = {
         "sliced_cheese":    "sliced_cheese.png",
         "cheese_patty":     "cheese_patty.png",
         "assembled_burger": "assembled_burger.png",
-        "complete":         "finished_burger.png",
+        "complete_burger":         "finished_burger.png",
         "burnt_patty":      "burnt_patty.png"
     },
     "CONE": {
