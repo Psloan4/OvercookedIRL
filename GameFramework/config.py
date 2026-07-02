@@ -136,6 +136,15 @@ COMPLETE_STATES = [
     "strawberry",
 ]
 
+# Which ASSET_MAP item type owns each complete state's icon (for order tickets).
+COMPLETE_STATE_ITEM_TYPE = {
+    "complete_burger": "BURGER",
+    "complete_fries":  "FRIES",
+    "vanilla":         "CONE",
+    "chocolate":       "CONE",
+    "strawberry":      "CONE",
+}
+
 # Some check at the combining station will see if both are in the tuple
 COMBINATIONS = {
     frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_burger"],["complete_burger"],["burnt_patty"]],

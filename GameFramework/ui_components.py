@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QRect, QTimer, QVariantAnimation, QEasingCurve
 from PySide6.QtGui import QPainter, QPixmap, QColor, QFont, QBrush, QPen, QConicalGradient
 
 from station import Station
-from config import ASSET_MAP, TABLE_CM, TABLE_REGION, STATION_DEFS
+from config import ASSET_MAP, COMPLETE_STATE_ITEM_TYPE, TABLE_CM, TABLE_REGION, STATION_DEFS
 
 _ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
@@ -559,23 +559,112 @@ class TableView(QWidget):
         self.update()
 
 
+class OrderTicket(QWidget):
+    """A single pending-order card showing the target dish's finished icon."""
+
+    def __init__(self, order_type: str, card_size: int, parent=None):
+        super().__init__(parent)
+        self.setObjectName("Card")
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setFixedSize(card_size, card_size)
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(8, 8, 8, 8)
+        lay.setAlignment(Qt.AlignCenter)
+
+        icon = QLabel()
+        icon.setAlignment(Qt.AlignCenter)
+        icon_size = int(card_size * 0.6)
+        item_type = COMPLETE_STATE_ITEM_TYPE.get(order_type)
+        pixmap = _load_base_pixmap(item_type, order_type)
+        if pixmap is not None:
+            icon.setPixmap(pixmap.scaled(
+                icon_size, icon_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        else:
+            icon.setText(order_type)
+        lay.addWidget(icon)
+
+
+class OrderRail(QWidget):
+    """Horizontal strip of pending-order tickets, oldest on the left.
+
+    Tickets are keyed by object identity (not order.time) so an existing
+    card is reused in place rather than torn down every tick. Sized to its
+    content (not Expanding) so it packs left instead of fighting the outer
+    row's stretches for space.
+    """
+
+    MAX_VISIBLE = 6
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.card_size = 96
+
+        self._lay = QHBoxLayout(self)
+        self._lay.setContentsMargins(0, 0, 0, 0)
+        self._lay.setSpacing(12)
+        self._lay.addStretch(1)
+
+        self._tickets: dict[int, OrderTicket] = {}
+
+    def set_card_size(self, size: int):
+        """Match ticket-card dimensions to the HUD blocks (points/time)."""
+        self.card_size = size
+        self.setFixedHeight(size)
+        for ticket in self._tickets.values():
+            ticket.setFixedSize(size, size)
+
+    def update_orders(self, orders: list):
+        seen = set()
+        for order in orders[:self.MAX_VISIBLE]:
+            key = id(order)
+            seen.add(key)
+            if key not in self._tickets:
+                ticket = OrderTicket(order.type, self.card_size, self)
+                self._tickets[key] = ticket
+                self._lay.insertWidget(self._lay.count() - 1, ticket)
+                ticket.show()
+
+        for key in list(self._tickets.keys()):
+            if key not in seen:
+                ticket = self._tickets.pop(key)
+                self._lay.removeWidget(ticket)
+                ticket.deleteLater()
+
+
 class GamePage(QWidget):
-    """One big table view: stations are zones on the table, items sit where
-    their tags are, and points/time float in the corners."""
+    """One big table view: a top bar holds the order tickets (left), points
+    (center), and time (right); the table fills the rest of the page."""
 
     def __init__(self):
         super().__init__()
         root = QVBoxLayout(self)
         root.setContentsMargins(16, 16, 16, 16)
+        root.setSpacing(16)
+
+        self.order_rail = OrderRail()
+        self.points_block, self.points_value = self._make_hud_block("POINTS", "0")
+        self.time_block, self.time_value = self._make_hud_block("TIME LEFT", "2:00")
+
+        # Match ticket-card size to the HUD blocks' natural height so every
+        # card in the top bar lines up.
+        hud_height = self.points_block.sizeHint().height()
+        self.points_block.setFixedHeight(hud_height)
+        self.time_block.setFixedHeight(hud_height)
+        self.order_rail.set_card_size(hud_height)
+
+        top_row = QHBoxLayout()
+        top_row.setSpacing(16)
+        top_row.addWidget(self.order_rail)
+        top_row.addStretch(1)
+        top_row.addWidget(self.points_block)
+        top_row.addStretch(1)
+        top_row.addWidget(self.time_block)
+        root.addLayout(top_row)
 
         self.table_view = TableView()
         root.addWidget(self.table_view)
-
-        # HUD: children of the page so they float over the table corners.
-        self.points_block, self.points_value = self._make_hud_block("POINTS", "0")
-        self.time_block, self.time_value = self._make_hud_block("TIME LEFT", "2:00")
-        self.points_block.raise_()
-        self.time_block.raise_()
 
     def _make_hud_block(self, label_text: str, value_text: str):
         block = QWidget(self)
@@ -598,18 +687,6 @@ class GamePage(QWidget):
         lay.addWidget(val, 0, Qt.AlignVCenter)
         return block, val
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        m = 28
-        self.points_block.adjustSize()
-        self.time_block.adjustSize()
-        # points bottom-left, time bottom-right
-        self.points_block.move(m, self.height() - self.points_block.height() - m)
-        self.time_block.move(
-            self.width() - self.time_block.width() - m,
-            self.height() - self.time_block.height() - m,
-        )
-
     def set_points(self, points: int):
         self.points_value.setText(str(points))
 
@@ -618,6 +695,9 @@ class GamePage(QWidget):
 
     def update_tags(self, render_list: list[dict]):
         self.table_view.update_tags(render_list)
+
+    def update_orders(self, orders: list):
+        self.order_rail.update_orders(orders)
 
     def update_stations(self, statuses: dict[str, dict], item_handler):
         self.table_view.update_stations(statuses, item_handler)
