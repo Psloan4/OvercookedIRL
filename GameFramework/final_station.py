@@ -1,6 +1,7 @@
 from aruco_tag_detector import ArucoTagDetector
 from feed_relay import FeedRelay
 from item import Item, ItemHandler
+from order import Order, OrderHandler
 from config import BASE_STATES, COMPLETE_STATES
 
 
@@ -8,9 +9,10 @@ class FinalStation:
     COMPLETE = "complete"
     UNCOMPLETE = "uncomplete"
 
-    def __init__(self, feed_relay, item_handler, station_def):
+    def __init__(self, feed_relay, item_handler, order_handler, station_def):
         self.feed_relay: FeedRelay = feed_relay
         self.item_handler: ItemHandler = item_handler
+        self.order_handler: OrderHandler = order_handler
         self.x = station_def["x"]
         self.y = station_def["y"]
         self.w = station_def["w"]
@@ -64,10 +66,13 @@ class FinalStation:
 
             self.frames_seen[tag] = self.frames_seen.get(tag, 0) + 1
             if self.frames_seen[tag] >= self.required_frames:
+                state = self.item_handler.item_state(tag)
                 self.item_handler.remove_item(tag)
                 self.frames_seen.pop(tag, None)
-                if item.state in COMPLETE_STATES:
+                if self.order_handler.complete_order(state):
                     delivered.append(tag)
+                    #If a future dev wants to implement dynamic scoring, just append the amount of points the completed order should score to delivered
+                    #main never actually uses this tag, it just uses the fact that it exists to add points
 
         scans = {
             tag: min(frames / self.required_frames, 1.0)

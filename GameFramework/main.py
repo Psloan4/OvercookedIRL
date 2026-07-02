@@ -9,6 +9,7 @@ from PySide6.QtCore import QTimer
 from final_station import FinalStation
 from feed_relay import FeedRelay
 from item import ItemHandler
+from order import OrderHandler
 from station import Station
 from aruco_tag_detector import ArucoTagDetector
 
@@ -34,6 +35,7 @@ class OvercookedIRLApp:
         self.station_feed_relay = FeedRelay(STATION_CAMERA_DEV)
         self.final_feed_relay = FeedRelay(FINAL_CAMERA_DEV)
         self.item_handler = ItemHandler()
+        self.order_handler = OrderHandler(DEBUG=True)
 
         # One presence camera per gated station. If a feed won't open, that
         # zone falls back to "always present" so a bad camera can't brick play.
@@ -66,6 +68,7 @@ class OvercookedIRLApp:
         self.final_station = FinalStation(
             self.final_feed_relay,
             self.item_handler,
+            self.order_handler,
             FINAL_STATION_DEF,
         )
 
@@ -103,6 +106,7 @@ class OvercookedIRLApp:
         self.time_left = GAME_SECONDS
 
         self.item_handler.clear()
+        self.order_handler.clear()
         for station in self.stations:
             station.reset()
         self.final_station.reset()
@@ -115,6 +119,8 @@ class OvercookedIRLApp:
         self.stack.setCurrentWidget(self.game_page)
         self.tick_timer.start(TICK_MS)
         self.countdown_timer.start(1000)
+
+        self.order_handler.start_game()
 
     def end_game(self):
         self.tick_timer.stop()
@@ -169,7 +175,6 @@ class OvercookedIRLApp:
         for station in self.stations:
             ids = [tag_id for (tag_id, cx, cy) in tags if station.contains(cx, cy)]
             present = player_present.get(station.player_zone, True)
-            target = station.target
             status = station._tick(ids, present)
             statuses[station.type] = status
             scan_progress.update(status.get("scans", {}))
@@ -178,11 +183,15 @@ class OvercookedIRLApp:
             ready_set.update(status.get("combine_ready", {}))
 
         final_status = self.final_station._tick()
-        for tag in final_status.get("delivered", []):
-            self.inc_points(10)
+        delivered = final_status.get("delivered", [])
+        for tag in delivered:
+            self.inc_points()
+            
 
         self.game_page.update_stations(statuses, self.item_handler)
         self.game_page.update_tags(self._build_render_list(tags, scan_progress, burning_map, combining_map, ready_set))
+
+        self.order_handler._tick()
 
     def _detect_tags(self, frame) -> list[tuple[int, float, float]]:
         """Return (tag_id, center_x, center_y) for every tag in the frame."""

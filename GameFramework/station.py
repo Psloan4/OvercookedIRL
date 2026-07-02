@@ -11,7 +11,7 @@ class Station:
     GRACE_SECONDS = 2.0
 
     # Print per-event diagnostics ([SCAN START/FINISH], [TARGET DROP]).
-    DEBUG = True
+    DEBUG = False
 
     def __init__(
         self,
