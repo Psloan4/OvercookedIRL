@@ -131,9 +131,12 @@ BASE_STATES = [
 COMPLETE_STATES = [
     "complete_burger",
     "complete_fries",
-    "vanilla",
-    "chocolate",
-    "strawberry",
+    "ice_cream",
+]
+
+#List of ice cream flavors -- used so that all ice cream can be counted as complete and the random flavor is just for fun
+ICE_CREAM_FLAVORS = [
+    "vanilla", "chocolate", "strawberry"
 ]
 
 # Some check at the combining station will see if both are in the tuple
