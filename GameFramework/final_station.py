@@ -2,7 +2,7 @@ from aruco_tag_detector import ArucoTagDetector
 from feed_relay import FeedRelay
 from item import Item, ItemHandler
 from order import Order, OrderHandler
-from config import BASE_STATES, COMPLETE_STATES
+from config import BASE_STATES, ICE_CREAM_FLAVORS
 
 
 class FinalStation:
@@ -67,6 +67,8 @@ class FinalStation:
             self.frames_seen[tag] = self.frames_seen.get(tag, 0) + 1
             if self.frames_seen[tag] >= self.required_frames:
                 state = self.item_handler.item_state(tag)
+                if state in ICE_CREAM_FLAVORS:
+                    state = "ice_cream"
                 self.item_handler.remove_item(tag)
                 self.frames_seen.pop(tag, None)
                 if self.order_handler.complete_order(state):
