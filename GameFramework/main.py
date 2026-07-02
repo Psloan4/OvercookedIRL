@@ -185,7 +185,7 @@ class OvercookedIRLApp:
         final_status = self.final_station._tick()
         delivered = final_status.get("delivered", [])
         for tag in delivered:
-            self.inc_points()
+            self.inc_points(10)
             
 
         self.game_page.update_stations(statuses, self.item_handler)

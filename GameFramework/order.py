@@ -14,10 +14,11 @@ class OrderHandler:
         self.order_num = 0
         
     def create_order(self):
-        order = Order(time.time())
+        time_from_start = time.time() - self.start_time
+        order = Order(time_from_start)
         self.orders.append(order)
         if self.DEBUG:
-            print(f"[ORDER CREATED]: Type = {order.type}, Time = {order.time:.3f}, Index = {self.order_num}")
+            print(f"\033[32m[ORDER CREATED]\033[0m: Type = {order.type}, Time = {order.time:.3f}, Index = {self.order_num}")
         self.order_num += 1
     
     def complete_index(self, item_state):
@@ -35,8 +36,8 @@ class OrderHandler:
         i = self.complete_index(item_state)
         if i is None: return False
         if self.DEBUG:
-            time_to_complete = time.time() - self.orders[i].time
-            print(f"[ORDER COMPLETE]: Type = {item_state}, Time = {time_to_complete:.3f}, Index = {i}")
+            time_to_complete = time.time() - self.orders[i].time - self.start_time
+            print(f"\033[34m[ORDER COMPLETE]\033[0m: Type = {item_state}, Time = {time_to_complete:.3f}, Index = {i}")
         del self.orders[i]
         self.order_num -= 1
         return True
@@ -49,7 +50,7 @@ class OrderHandler:
         if self.order_num > 5:
             return
         recent_order_time = self.orders[self.order_num-1].time
-        if time.time() - recent_order_time > 15:
+        if time.time() - self.start_time - recent_order_time > 15:
             self.create_order()
 
     def clear(self):
@@ -57,6 +58,7 @@ class OrderHandler:
         self.order_num = 0
     
     def start_game(self):
+        self.start_time = time.time()
         self.create_order()
         self.create_order()
         self.create_order()
