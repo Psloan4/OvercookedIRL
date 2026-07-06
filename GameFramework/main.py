@@ -192,6 +192,7 @@ class OvercookedIRLApp:
         self.game_page.update_tags(self._build_render_list(tags, scan_progress, burning_map, combining_map, ready_set))
 
         self.order_handler._tick()
+        self.game_page.update_orders(self.order_handler.orders)
 
     def _detect_tags(self, frame) -> list[tuple[int, float, float]]:
         """Return (tag_id, center_x, center_y) for every tag in the frame."""
