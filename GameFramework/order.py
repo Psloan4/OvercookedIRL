@@ -18,7 +18,7 @@ class OrderHandler:
         order = Order(time_from_start)
         self.orders.append(order)
         if self.DEBUG:
-            print(f"\033[32m[ORDER CREATED]\033[0m: Type = {order.type}, Time = {order.time:.3f}, Index = {self.order_num}")
+            print(f"\033[34m[ORDER CREATED]\033[0m: Type = {order.type}, Time = {order.time:.3f}, Index = {self.order_num}")
         self.order_num += 1
     
     def complete_index(self, item_state):
@@ -37,7 +37,7 @@ class OrderHandler:
         if i is None: return False
         if self.DEBUG:
             time_to_complete = time.time() - self.orders[i].time - self.start_time
-            print(f"\033[34m[ORDER COMPLETE]\033[0m: Type = {item_state}, Time = {time_to_complete:.3f}, Index = {i}")
+            print(f"\033[32m[ORDER COMPLETE]\033[0m: Type = {item_state}, Time = {time_to_complete:.3f}, Index = {i}")
         del self.orders[i]
         self.order_num -= 1
         return True
