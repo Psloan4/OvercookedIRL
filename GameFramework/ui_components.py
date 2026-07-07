@@ -609,6 +609,16 @@ class OrderRail(QWidget):
         self._lay = QHBoxLayout(self)
         self._lay.setContentsMargins(0, 0, 0, 0)
         self._lay.setSpacing(12)
+
+        # "ORDERS" heading so the strip reads as a to-do list, not decoration.
+        self._header = QLabel("ORDERS")
+        self._header.setObjectName("HudLabel")
+        self._header.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self._header.setStyleSheet(
+            "font-size: 40px; font-weight: 900; letter-spacing: 2px; padding-right: 8px;"
+        )
+        self._lay.addWidget(self._header)
+
         self._lay.addStretch(1)
 
         self._tickets: dict[int, OrderTicket] = {}
