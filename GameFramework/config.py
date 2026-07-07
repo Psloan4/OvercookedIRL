@@ -47,7 +47,7 @@ STATION_DEFS = [
          color=STATION_COLORS["1"]),
     #Station 2a: Slicing
     dict(name="Slicing",
-         x=7 + 155, y=110, w=253, h=155, scan_time=6,
+         x=7 + 155, y=110, w=253, h=155, scan_time=4,
          type=tuple(["2a", "raw_potato", "cheese_block"]),
          burn_type=tuple([]),
          combinable=[],
@@ -56,7 +56,7 @@ STATION_DEFS = [
          cook_one = True),
     #Station 2b: Combine 
     dict(name="Assembling",
-         x=7 + 155, y=110 + 155, w=253, h=167, scan_time=6,
+         x=7 + 155, y=110 + 155, w=253, h=167, scan_time=3,
          type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese"]),
          burn_type=tuple([]),
          combinable=["sliced_cheese","cooked_patty"],
@@ -65,7 +65,7 @@ STATION_DEFS = [
          cook_one=True ),
     #Station 3: Plating
     dict(name="Plating",
-         x=7 + 155 + 253, y=110, w=196, h=322, scan_time=6, burn_time = 12,
+         x=7 + 155 + 253, y=110, w=196, h=322, scan_time=4, burn_time = 14,
          type=tuple(["assembled_burger", "cooked_fries", "cone", "vanilla", "chocolate", "strawberry"]),
          burn_type=tuple(["vanilla", "chocolate", "strawberry"]),
          combinable=[],
