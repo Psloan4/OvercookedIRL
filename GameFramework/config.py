@@ -57,16 +57,16 @@ STATION_DEFS = [
     #Station 2b: Combine 
     dict(name="Assembling",
          x=7 + 155, y=110 + 155, w=253, h=167, scan_time=3,
-         type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese"]),
+         type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese", "cooked_fries"]),
          burn_type=tuple([]),
-         combinable=["sliced_cheese","cooked_patty"],
+         combinable=["sliced_cheese","cooked_patty", "cooked_fries"],
          player_zone="2b",
          color=STATION_COLORS["2b"],
          cook_one=True ),
     #Station 3: Plating
     dict(name="Plating",
          x=7 + 155 + 253, y=110, w=196, h=322, scan_time=4, burn_time = 14,
-         type=tuple(["assembled_burger", "cooked_fries", "cone", "vanilla", "chocolate", "strawberry"]),
+         type=tuple(["assembled_burger", "cooked_fries", "cone", "vanilla", "chocolate", "strawberry", "cheese_fries"]),
          burn_type=tuple(["vanilla", "chocolate", "strawberry"]),
          combinable=[],
          player_zone="3",
@@ -127,11 +127,12 @@ BASE_STATES = [
     "cone"
 ]
 
-#List of states that are complete and should score points when returned to the final station
+#List of states that are complete and eligible as an order
 COMPLETE_STATES = [
     "complete_burger",
     "complete_fries",
     "ice_cream",
+    "complete_cheese_fries",
 ]
 
 #List of ice cream flavors -- used so that all ice cream can be counted as complete and the random flavor is just for fun
@@ -148,11 +149,11 @@ COMPLETE_STATE_ITEM_TYPE = {
     "strawberry":      "CONE",
 }
 
-# Some check at the combining station will see if both are in the tuple
+# Combining station will turn both tags in the set to these future states
 COMBINATIONS = {
     frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_burger"],["complete_burger"],["burnt_patty"]],
     frozenset({"cooked_patty", "sliced_bun"}): [["assembled_burger"],["complete_burger"]],
-    frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete"]],
+    frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete_cheese_fries"]],
 }
 
 # Item stage -> the station it should be taken to next.
@@ -201,7 +202,9 @@ ASSET_MAP = {
         "sliced_fries":     "raw_fries.png",
         "cooked_fries":     "cooked_fries.png",
         "complete_fries":         "finished_fries.png",
-        "burnt_fries":      "burnt_fries.png"
+        "burnt_fries":      "burnt_fries.png",
+        "cheese_fries":     "poop_potato.png",
+        "complete_cheese_fries":    "lord_crandy_bw.png",
     },
     "CHEESE": {
         "cheese_block":     "cheese_block.png",
@@ -209,7 +212,9 @@ ASSET_MAP = {
         "cheese_patty":     "cheese_patty.png",
         "assembled_burger": "assembled_burger.png",
         "complete_burger":         "finished_burger.png",
-        "burnt_patty":      "burnt_patty.png"
+        "burnt_patty":      "burnt_patty.png",
+        "cheese_fries":     "poop_potato.png",
+        "complete_cheese_fries":    "lord_crandy_bw.png",
     },
     "CONE": {
         "cone":             "cone.png",
