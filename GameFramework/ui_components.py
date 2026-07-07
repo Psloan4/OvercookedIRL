@@ -575,8 +575,13 @@ class OrderTicket(QWidget):
         icon = QLabel()
         icon.setAlignment(Qt.AlignCenter)
         icon_size = int(card_size * 0.6)
-        item_type = COMPLETE_STATE_ITEM_TYPE.get(order_type)
-        pixmap = _load_base_pixmap(item_type, order_type)
+        # Generic "ice_cream" orders have no asset of their own; default the
+        # card photo to vanilla (any flavor still completes the order).
+        if order_type == "ice_cream":
+            item_type, icon_state = "CONE", "vanilla"
+        else:
+            item_type, icon_state = COMPLETE_STATE_ITEM_TYPE.get(order_type), order_type
+        pixmap = _load_base_pixmap(item_type, icon_state)
         if pixmap is not None:
             icon.setPixmap(pixmap.scaled(
                 icon_size, icon_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
