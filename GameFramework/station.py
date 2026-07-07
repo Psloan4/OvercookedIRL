@@ -1,14 +1,12 @@
 import time
 import itertools
 from item import Item, ItemHandler
-from config import COMBINATIONS
+from config import COMBINATIONS, GRACE_SECONDS
 
 
 class Station:
     READY = "ready"
     SCANNING = "scanning"
-
-    GRACE_SECONDS = 2.0
 
     # Print per-event diagnostics ([SCAN START/FINISH], [TARGET DROP]).
     DEBUG = False
@@ -41,11 +39,11 @@ class Station:
         # Key into PLAYER_ZONES/PLAYER_CAMS, or None if this station never
         # requires a player to be standing beside it.
         self.player_zone = player_zone
-        self.player_grace_frames = 0
+        self.player_last_seen = 0
 
         self.cook_one = cook_one
         self.target = None
-        self.target_grace_frames = 0
+        self.target_last_seen = 0
 
         # State machine
         self.state = self.READY
@@ -126,8 +124,7 @@ class Station:
         # No player beside the station -> wipe all progress. Scans restart from
         # zero when the player returns and the item is still present.
         if not player_present:
-            self.player_grace_frames += 1
-            if self.player_grace_frames >= 16: #Max number of scans player can be missing before reset
+            if now - self.player_last_seen > GRACE_SECONDS:
                 # self.scans.clear()
                 wiped = self._filter_burn_scans()
                 if self.DEBUG and wiped:
@@ -138,7 +135,7 @@ class Station:
                 reset = wiped
                 self.combine_ready.clear()
         else:
-            self.player_grace_frames = 0
+            self.player_last_seen = now
         present_ids = set(ids)
 
         #When in cook_one mode, filter out all scans that aren't the target, ready to combine, or burnable
@@ -152,14 +149,13 @@ class Station:
             if not self.target is None:
             #Case we have a target but we don't see it
                 if not self.target in ids:
-                    self.target_grace_frames += 1
-                    if self.target_grace_frames > 16:
+                    if now - self.target_last_seen > GRACE_SECONDS:
                         self.target = None
                         self.scans.clear()
             #Case we have a target and we see it
                 for tag in ids:
                     if (tag == self.target):
-                        self.target_grace_frames = 0
+                        self.target_last_seen = now
                     if (tag != self.target):
                         if (tag in self.combine_ready) or (self._is_burning(tag)):
                             continue
@@ -207,10 +203,10 @@ class Station:
             else:
                 # Paused: freeze last_tick so the gap isn't counted on resume.
                 sc["last_tick"] = now
-                if (now - sc["last_seen"]) > self.GRACE_SECONDS:
+                if (now - sc["last_seen"]) > GRACE_SECONDS:
                     if self.DEBUG:
                         print(
-                            f"[SCAN DROP] Station={self.name} Tag={tag} gone>{self.GRACE_SECONDS}s "
+                            f"[SCAN DROP] Station={self.name} Tag={tag} gone>{GRACE_SECONDS}s "
                             f"(lost {sc['accum']:.1f}/{self.scan_time}s)"
                         )
                     del self.scans[tag]

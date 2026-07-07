@@ -84,6 +84,9 @@ FINAL_STATION_DEF = dict(
     show_window=True,
 )
 
+#Grace seconds determines the amount of time a station can miss a tag before considering it gone
+GRACE_SECONDS = 1.0
+
 GRID_PLACEMENT = {
     "1":  (0, 0, 2, 1),  # row, col, colSpan, rowSpan
     "2a": (0, 1, 1, 1),
