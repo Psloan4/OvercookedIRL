@@ -203,8 +203,8 @@ ASSET_MAP = {
         "cooked_fries":     "cooked_fries.png",
         "complete_fries":         "finished_fries.png",
         "burnt_fries":      "burnt_fries.png",
-        "cheese_fries":     "poop_potato.png",
-        "complete_cheese_fries":    "lord_crandy_bw.png",
+        "cheese_fries":     "cheese_fries.png",
+        "complete_cheese_fries":    "Finished_cheese_fries.png",
     },
     "CHEESE": {
         "cheese_block":     "cheese_block.png",
@@ -213,8 +213,8 @@ ASSET_MAP = {
         "assembled_burger": "assembled_burger.png",
         "complete_burger":         "finished_burger.png",
         "burnt_patty":      "burnt_patty.png",
-        "cheese_fries":     "poop_potato.png",
-        "complete_cheese_fries":    "lord_crandy_bw.png",
+        "cheese_fries":     "cheese_fries.png",
+        "complete_cheese_fries":    "Finished_cheese_fries.png",
     },
     "CONE": {
         "cone":             "cone.png",
