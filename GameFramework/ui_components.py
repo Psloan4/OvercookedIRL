@@ -202,6 +202,14 @@ class _ItemImage(QLabel):
             for i, c in enumerate(self._RAINBOW):
                 grad.setColorAt(i / (n - 1), QColor(c))
             p.setPen(QPen(QBrush(grad), w))
+        elif self.ring_color == "green_yellow":
+            p.setBrush(Qt.NoBrush)
+            p.setPen(QPen(QColor("#22c55e"), w))
+            p.drawArc(rect, 45 * 16, 180 * 16)
+            p.setPen(QPen(QColor("#facc15"), w))
+            p.drawArc(rect, 225 * 16, 180 * 16)
+            p.end()
+            return
         else:
             p.setPen(QPen(QColor(self.ring_color), w))
         p.setBrush(Qt.NoBrush)

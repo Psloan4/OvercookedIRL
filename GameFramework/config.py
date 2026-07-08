@@ -183,6 +183,8 @@ STAGE_COLORS = {
     stage: STATION_COLORS[dest] for stage, dest in STAGE_DESTINATION.items()
 }
 
+STAGE_COLORS["cooked_fries"] = "green_yellow"
+
 # --- Spatial table view -----------------------------------------------------
 # Real-world table size (cm). The on-screen table is locked to this aspect ratio.
 TABLE_CM = (117, 62)
