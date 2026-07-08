@@ -4,7 +4,10 @@ from config import COMPLETE_STATES
 
 class Order:
     def __init__(self, time):
-        self.type = random.choice(COMPLETE_STATES)
+        self.type = random.choices(
+            population=list(COMPLETE_STATES.keys()),
+            weights=list(COMPLETE_STATES.values()),
+            k=1)[0]
         self.time = time
 
 class OrderHandler:
