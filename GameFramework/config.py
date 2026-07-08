@@ -130,13 +130,13 @@ BASE_STATES = [
     "cone"
 ]
 
-#List of states that are complete and eligible as an order
-COMPLETE_STATES = [
-    "complete_burger",
-    "complete_fries",
-    "ice_cream",
-    "complete_cheese_fries",
-]
+#List of states that are complete and eligible as an order, and the chances of it being chosen
+COMPLETE_STATES = {
+    "complete_burger": 33, #does not actually have to add up to 100, but doing so makes it easy to read as percentages
+    "complete_fries": 17,
+    "ice_cream": 33,
+    "complete_cheese_fries": 17,
+}
 
 #List of ice cream flavors -- used so that all ice cream can be counted as complete and the random flavor is just for fun
 ICE_CREAM_FLAVORS = [
@@ -147,6 +147,7 @@ ICE_CREAM_FLAVORS = [
 COMPLETE_STATE_ITEM_TYPE = {
     "complete_burger": "BURGER",
     "complete_fries":  "FRIES",
+    "complete_cheese_fries": "FRIES",
     "vanilla":         "CONE",
     "chocolate":       "CONE",
     "strawberry":      "CONE",
@@ -175,7 +176,7 @@ STAGE_DESTINATION = {
 }
 
 #Sets the destination of all complete states to the delivery station
-for state in COMPLETE_STATES:
+for state in COMPLETE_STATES.keys():
     STAGE_DESTINATION[state] = "4"
 
 # Item stage -> colour of its destination station (used to tint item rings).
