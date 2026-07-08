@@ -6,6 +6,12 @@ QWidget {
     font-size: 16px;
 }
 
+/* Labels shouldn't inherit the page fill — otherwise they paint a grey box
+   behind their text/image, even when sitting on a white card. */
+QLabel {
+    background: transparent;
+}
+
 QLabel#Title {
     font-size: 42px;
     font-weight: 900;
@@ -30,7 +36,7 @@ QPushButton:pressed { background: #1e40af; }
 
 QWidget#Card {
     background: #ffffff;
-    border: 1px solid #dbe0ea;
+    border: none;
     border-radius: 18px;
 }
 
