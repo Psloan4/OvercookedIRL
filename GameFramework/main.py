@@ -21,7 +21,7 @@ from ui_components import StartPage, GamePage, EndPage
 pygame.mixer.init()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INC_POINTS_SOUND = pygame.mixer.Sound(
-    os.path.join(BASE_DIR, "assets", "inc_points.mp3")
+    os.path.join(BASE_DIR, "assets", "miku-miku-beam-made-with-Voicemod.mp3")
 )
 
 class OvercookedIRLApp:
