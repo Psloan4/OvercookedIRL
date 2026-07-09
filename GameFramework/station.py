@@ -51,7 +51,7 @@ class Station:
         #   tag -> {"accum": float, "last_seen": float, "last_tick": float}
         self.scans: dict[int, dict] = {}
 
-        # tags ready for combining (uses a dictionary to track grace frames on combinable tags)
+        # tags ready for combining (uses a dictionary to track last_seen frames on combinable tags)
         self.combine_ready: dict[int, int] = {}
 
     def contains(self, px: float, py: float) -> bool:
@@ -188,7 +188,7 @@ class Station:
         seen_combine_ready = []
         for tag in ids:
             if (tag in self.combine_ready):
-                self.combine_ready[tag] = 0 #resets grace period if we see the tag
+                self.combine_ready[tag] = now #resets grace period if we see the tag
                 seen_combine_ready.append(tag)
 
         for tag in list(self.scans.keys()):
@@ -220,7 +220,7 @@ class Station:
                 if self.item_handler.get_item(tag).state in self.burn_type:
                     self.item_handler.burn_item(tag)
                 elif self.item_handler.get_item(tag).state in self.combinable:
-                    self.combine_ready[tag] = 0
+                    self.combine_ready[tag] = now
                     seen_combine_ready.append(tag)
                 else:
                     self.target = None
@@ -244,8 +244,7 @@ class Station:
         deleted_tags = []
         for tag in self.combine_ready:
             if not tag in seen_combine_ready:
-                self.combine_ready[tag] += 1
-                if self.combine_ready[tag] > 16: #number of missed frames before we forget tag
+                if now - self.combine_ready[tag] > GRACE_SECONDS:
                     deleted_tags.append(tag)
 
         for tag in deleted_tags:
