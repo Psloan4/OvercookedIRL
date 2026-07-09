@@ -44,7 +44,7 @@ class OvercookedIRLApp:
             try:
                 self.player_feeds[zone_key] = FeedRelay(url)
             except RuntimeError as e:
-                print(f"[WARN] Player camera for zone '{zone_key}' unavailable "
+                print(f"\033[31m[WARN]\033[0m Player camera for zone '{zone_key}' unavailable "
                       f"({e}); treating it as always-present.")
 
         self.stations: list[Station] = []
