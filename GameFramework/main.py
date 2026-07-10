@@ -26,7 +26,7 @@ INC_POINTS_SOUND = pygame.mixer.Sound(
 )
 
 class OvercookedIRLApp:
-    def __init__(self):
+    def __init__(self, show_final_window=False):
         self.stack = QStackedWidget()
         self.stack.setWindowTitle("OvercookedIRL")
 
@@ -74,9 +74,10 @@ class OvercookedIRLApp:
         )
 
         # Optional second window mirroring the delivery station in real time.
+        # Enabled by the --final-station CLI flag, or by show_window in config.
         self.final_window = (
             FinalStationWindow(FINAL_STATION_DEF)
-            if FINAL_STATION_DEF.get("show_window") else None
+            if (show_final_window or FINAL_STATION_DEF.get("show_window")) else None
         )
 
         self.detector = ArucoTagDetector("DICT_4X4_50")
@@ -281,9 +282,17 @@ class OvercookedIRLApp:
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(description="OvercookedIRL")
+    parser.add_argument(
+        "--final-station",
+        action="store_true",
+        help="Open the delivery-station window (overrides config's show_window).",
+    )
+    args = parser.parse_args()
+
     app = QApplication()
     app.setStyleSheet(APP_QSS)
-    ui = OvercookedIRLApp()
+    ui = OvercookedIRLApp(show_final_window=args.final_station)
     ui.run()
 
     sys.exit(app.exec())
