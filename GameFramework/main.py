@@ -25,6 +25,9 @@ INC_POINTS_SOUND = pygame.mixer.Sound(
     os.path.join(BASE_DIR, "assets", "miku-miku-beam-made-with-Voicemod.mp3")
 )
 
+# how many seconds of "get ready" countdown after Start is clicked
+PREGAME_SECONDS = 5
+
 class OvercookedIRLApp:
     def __init__(self, show_final_window=False):
         self.stack = QStackedWidget()
@@ -100,6 +103,10 @@ class OvercookedIRLApp:
         self.countdown_timer = QTimer(self.stack)
         self.countdown_timer.timeout.connect(self._countdown_tick)
 
+        self.pregame_timer = QTimer(self.stack)
+        self.pregame_timer.timeout.connect(self._pregame_tick)
+        self.pregame_left = 0
+
         self.game_page.set_points(self.points)
         self.game_page.set_time_left(self.time_left)
 
@@ -127,9 +134,24 @@ class OvercookedIRLApp:
         self.game_page.reset_station_cards()
 
         self.stack.setCurrentWidget(self.game_page)
+
+        # Frozen "get ready" countdown
+        self.pregame_left = PREGAME_SECONDS
+        self.game_page.show_countdown(self.pregame_left)
+        self.pregame_timer.start(1000)
+
+    def _pregame_tick(self):
+        self.pregame_left -= 1
+        if self.pregame_left > 0:
+            self.game_page.show_countdown(self.pregame_left)
+        else:
+            self.pregame_timer.stop()
+            self.game_page.hide_countdown()
+            self._begin_round()
+
+    def _begin_round(self):
         self.tick_timer.start(TICK_MS)
         self.countdown_timer.start(1000)
-
         self.order_handler.start_game()
 
     def end_game(self):
@@ -141,6 +163,8 @@ class OvercookedIRLApp:
     def go_to_start(self):
         self.tick_timer.stop()
         self.countdown_timer.stop()
+        self.pregame_timer.stop()
+        self.game_page.hide_countdown()
         self.stack.setCurrentWidget(self.start_page)
 
     def _countdown_tick(self):
