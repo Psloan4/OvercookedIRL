@@ -689,6 +689,35 @@ class GamePage(QWidget):
         self.table_view = TableView()
         root.addWidget(self.table_view)
 
+        # Full-page "get ready" overlay, floated above the layout (not in it) so
+        # it covers the frozen table during the pre-game countdown.
+        self.countdown_overlay = QLabel("", self)
+        self.countdown_overlay.setObjectName("CountdownOverlay")
+        self.countdown_overlay.setAlignment(Qt.AlignCenter)
+        self.countdown_overlay.setStyleSheet(
+            "QLabel#CountdownOverlay {"
+            " background-color: rgba(15, 23, 42, 210);"
+            " color: #f8fafc;"
+            "}"
+        )
+        self.countdown_overlay.hide()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.countdown_overlay.setGeometry(self.rect())
+
+    def show_countdown(self, n: int):
+        self.countdown_overlay.setGeometry(self.rect())
+        self.countdown_overlay.setText(
+            "<div style='font-size:72px; font-weight:900; letter-spacing:8px;'>GET READY</div>"
+            f"<div style='font-size:300px; font-weight:900;'>{n}</div>"
+        )
+        self.countdown_overlay.raise_()
+        self.countdown_overlay.show()
+
+    def hide_countdown(self):
+        self.countdown_overlay.hide()
+
     def _make_hud_block(self, label_text: str, value_text: str):
         block = QWidget(self)
         block.setObjectName("Card")

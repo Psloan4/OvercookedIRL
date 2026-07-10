@@ -99,10 +99,10 @@ IDS = {
     1: "BURGER",
     2: "CHEESE",
     3: "CHEESE",
-    4: "CONE",
-    5: "CONE",
+    4: "CHEESE",
+    5: "CHEESE",
     6: "CONE",
-    7: "FRIES",
+    7: "CONE",
     8: "FRIES",
     9: "FRIES",
     10: "FRIES",
@@ -171,6 +171,7 @@ STAGE_DESTINATION = {
     "cone":            "3",   # plate
     "assembled_burger": "3",   # plate
     "cooked_fries":    "3",   # plate
+    "cheese_fries":    "3",   # plate
     "cooked_patty":    "2b",  # combine (same path as cheese_patty)
     "complete":        "4",   # deliver
 }

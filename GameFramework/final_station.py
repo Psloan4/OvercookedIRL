@@ -9,6 +9,9 @@ class FinalStation:
     COMPLETE = "complete"
     UNCOMPLETE = "uncomplete"
 
+    # Set True to log final-camera detections each tick (diagnostic only).
+    DEBUG = False
+
     def __init__(self, feed_relay, item_handler, order_handler, station_def):
         self.feed_relay: FeedRelay = feed_relay
         self.item_handler: ItemHandler = item_handler
@@ -39,21 +42,36 @@ class FinalStation:
     def _tick(self):
         image = self.feed_relay.get_frame()
         if image is None:
-            return {"state": self.UNCOMPLETE, "delivered": [], "ids": [], "scans": {}}
+            if self.DEBUG:
+                print("[FINAL] no frame from final camera (cam/1)")
+            return {"state": self.UNCOMPLETE, "delivered": [], "delivered_items": [],
+                    "ids": [], "scans": {}, "positions": {}}
 
         tags = self._detect_tags(image)
-        ids_in_region = [
-            tag_id
+        # tag -> position normalized (0..1) within the station region, for the UI.
+        positions = {
+            tag_id: ((cx - self.x) / self.w, (cy - self.y) / self.h)
             for tag_id, cx, cy in tags
             if self.contains(cx, cy)
-        ]
+        }
+        ids_in_region = list(positions.keys())
         present_ids = set(ids_in_region)
+
+        if self.DEBUG:
+            all_ids = [t for t, _cx, _cy in tags]
+            known = [t for t in ids_in_region if self.item_handler.has_item(t)]
+            print(f"[FINAL] detected={all_ids} in_region={ids_in_region} known_items={known}")
+
+        # Create tags if it sees IDs
+        for tag in ids_in_region:
+            self.item_handler.create_item(tag)
 
         for tag in list(self.frames_seen.keys()):
             if tag not in present_ids:
                 del self.frames_seen[tag]
 
         delivered = []
+        delivered_items = []
         for tag in ids_in_region:
             if not self.item_handler.has_item(tag):
                 self.frames_seen.pop(tag, None)
@@ -66,13 +84,18 @@ class FinalStation:
 
             self.frames_seen[tag] = self.frames_seen.get(tag, 0) + 1
             if self.frames_seen[tag] >= self.required_frames:
-                state = self.item_handler.item_state(tag)
+                item_type = item.type
+                orig_state = self.item_handler.item_state(tag)
+                state = orig_state
                 if state in ICE_CREAM_FLAVORS:
                     state = "ice_cream"
                 self.item_handler.remove_item(tag)
                 self.frames_seen.pop(tag, None)
                 if self.order_handler.complete_order(state):
                     delivered.append(tag)
+                    # Captured before removal so the delivery UI can show the
+                    # actual item that was delivered.
+                    delivered_items.append({"type": item_type, "state": orig_state})
                     #If a future dev wants to implement dynamic scoring, just append the amount of points the completed order should score to delivered
                     #main never actually uses this tag, it just uses the fact that it exists to add points
 
@@ -84,6 +107,8 @@ class FinalStation:
         return {
             "state": state,
             "delivered": delivered,
+            "delivered_items": delivered_items,
             "ids": ids_in_region,
             "scans": scans,
+            "positions": positions,
         }

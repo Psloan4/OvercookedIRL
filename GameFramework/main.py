@@ -16,16 +16,20 @@ from aruco_tag_detector import ArucoTagDetector
 from style import APP_QSS
 from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, FINAL_STATION_DEF, TABLE_REGION, PLAYER_CAMS, PLAYER_ZONES, PLAYER_TAG_IDS, STAGE_COLORS
 from ui_components import StartPage, GamePage, EndPage
+from final_window import FinalStationWindow
 
 
 pygame.mixer.init()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INC_POINTS_SOUND = pygame.mixer.Sound(
-    os.path.join(BASE_DIR, "assets", "inc_points.mp3")
+    os.path.join(BASE_DIR, "assets", "miku-miku-beam-made-with-Voicemod.mp3")
 )
 
+# how many seconds of "get ready" countdown after Start is clicked
+PREGAME_SECONDS = 5
+
 class OvercookedIRLApp:
-    def __init__(self):
+    def __init__(self, show_final_window=False):
         self.stack = QStackedWidget()
         self.stack.setWindowTitle("OvercookedIRL")
 
@@ -72,6 +76,13 @@ class OvercookedIRLApp:
             FINAL_STATION_DEF,
         )
 
+        # Optional second window mirroring the delivery station in real time.
+        # Enabled by the --final-station CLI flag, or by show_window in config.
+        self.final_window = (
+            FinalStationWindow(FINAL_STATION_DEF)
+            if (show_final_window or FINAL_STATION_DEF.get("show_window")) else None
+        )
+
         self.detector = ArucoTagDetector("DICT_4X4_50")
 
         self.SCAN_EVERY = 3
@@ -92,6 +103,10 @@ class OvercookedIRLApp:
         self.countdown_timer = QTimer(self.stack)
         self.countdown_timer.timeout.connect(self._countdown_tick)
 
+        self.pregame_timer = QTimer(self.stack)
+        self.pregame_timer.timeout.connect(self._pregame_tick)
+        self.pregame_left = 0
+
         self.game_page.set_points(self.points)
         self.game_page.set_time_left(self.time_left)
 
@@ -110,6 +125,8 @@ class OvercookedIRLApp:
         for station in self.stations:
             station.reset()
         self.final_station.reset()
+        if self.final_window:
+            self.final_window.reset()
         self._scan_tick = 0
 
         self.game_page.set_points(self.points)
@@ -117,9 +134,24 @@ class OvercookedIRLApp:
         self.game_page.reset_station_cards()
 
         self.stack.setCurrentWidget(self.game_page)
+
+        # Frozen "get ready" countdown
+        self.pregame_left = PREGAME_SECONDS
+        self.game_page.show_countdown(self.pregame_left)
+        self.pregame_timer.start(1000)
+
+    def _pregame_tick(self):
+        self.pregame_left -= 1
+        if self.pregame_left > 0:
+            self.game_page.show_countdown(self.pregame_left)
+        else:
+            self.pregame_timer.stop()
+            self.game_page.hide_countdown()
+            self._begin_round()
+
+    def _begin_round(self):
         self.tick_timer.start(TICK_MS)
         self.countdown_timer.start(1000)
-
         self.order_handler.start_game()
 
     def end_game(self):
@@ -131,6 +163,8 @@ class OvercookedIRLApp:
     def go_to_start(self):
         self.tick_timer.stop()
         self.countdown_timer.stop()
+        self.pregame_timer.stop()
+        self.game_page.hide_countdown()
         self.stack.setCurrentWidget(self.start_page)
 
     def _countdown_tick(self):
@@ -186,7 +220,10 @@ class OvercookedIRLApp:
         delivered = final_status.get("delivered", [])
         for tag in delivered:
             self.inc_points(10)
-            
+
+        if self.final_window:
+            self.final_window.update_view(final_status, self.item_handler)
+
 
         self.game_page.update_stations(statuses, self.item_handler)
         self.game_page.update_tags(self._build_render_list(tags, scan_progress, burning_map, combining_map, ready_set))
@@ -263,13 +300,23 @@ class OvercookedIRLApp:
         self.stack.setMinimumSize(520, 420)
         self.stack.resize(820, 560)
         self.stack.showMaximized()
+        if self.final_window:
+            self.final_window.show()
 
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(description="OvercookedIRL")
+    parser.add_argument(
+        "--final-station",
+        action="store_true",
+        help="Open the delivery-station window (overrides config's show_window).",
+    )
+    args = parser.parse_args()
+
     app = QApplication()
     app.setStyleSheet(APP_QSS)
-    ui = OvercookedIRLApp()
+    ui = OvercookedIRLApp(show_final_window=args.final_station)
     ui.run()
 
     sys.exit(app.exec())
