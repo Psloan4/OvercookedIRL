@@ -16,6 +16,7 @@ from aruco_tag_detector import ArucoTagDetector
 from style import APP_QSS
 from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, FINAL_STATION_DEF, TABLE_REGION, PLAYER_CAMS, PLAYER_ZONES, PLAYER_TAG_IDS, STAGE_COLORS
 from ui_components import StartPage, GamePage, EndPage
+from final_window import FinalStationWindow
 
 
 pygame.mixer.init()
@@ -72,6 +73,12 @@ class OvercookedIRLApp:
             FINAL_STATION_DEF,
         )
 
+        # Optional second window mirroring the delivery station in real time.
+        self.final_window = (
+            FinalStationWindow(FINAL_STATION_DEF)
+            if FINAL_STATION_DEF.get("show_window") else None
+        )
+
         self.detector = ArucoTagDetector("DICT_4X4_50")
 
         self.SCAN_EVERY = 3
@@ -110,6 +117,8 @@ class OvercookedIRLApp:
         for station in self.stations:
             station.reset()
         self.final_station.reset()
+        if self.final_window:
+            self.final_window.reset()
         self._scan_tick = 0
 
         self.game_page.set_points(self.points)
@@ -186,7 +195,10 @@ class OvercookedIRLApp:
         delivered = final_status.get("delivered", [])
         for tag in delivered:
             self.inc_points(10)
-            
+
+        if self.final_window:
+            self.final_window.update_view(final_status, self.item_handler)
+
 
         self.game_page.update_stations(statuses, self.item_handler)
         self.game_page.update_tags(self._build_render_list(tags, scan_progress, burning_map, combining_map, ready_set))
@@ -263,6 +275,8 @@ class OvercookedIRLApp:
         self.stack.setMinimumSize(520, 420)
         self.stack.resize(820, 560)
         self.stack.showMaximized()
+        if self.final_window:
+            self.final_window.show()
 
 
 if __name__ == "__main__":
