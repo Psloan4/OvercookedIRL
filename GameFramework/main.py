@@ -21,15 +21,14 @@ from final_window import FinalStationWindow
 
 pygame.mixer.init()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-INC_POINTS_SOUND = pygame.mixer.Sound(
-    os.path.join(BASE_DIR, "assets", "miku-miku-beam-made-with-Voicemod.mp3")
-)
+
 
 # how many seconds of "get ready" countdown after Start is clicked
 PREGAME_SECONDS = 5
 
 class OvercookedIRLApp:
-    def __init__(self, show_final_window=False):
+    def __init__(self, debug=False, show_final_window=False):
+        self.debug = debug
         self.stack = QStackedWidget()
         self.stack.setWindowTitle("OvercookedIRL")
 
@@ -39,7 +38,7 @@ class OvercookedIRLApp:
         self.station_feed_relay = FeedRelay(STATION_CAMERA_DEV)
         self.final_feed_relay = FeedRelay(FINAL_CAMERA_DEV)
         self.item_handler = ItemHandler()
-        self.order_handler = OrderHandler(DEBUG=True)
+        self.order_handler = OrderHandler(DEBUG=self.debug)
 
         # One presence camera per gated station. If a feed won't open, that
         # zone falls back to "always present" so a bad camera can't brick play.
@@ -54,7 +53,7 @@ class OvercookedIRLApp:
         self.stations: list[Station] = []
         for d in STATION_DEFS:
             station_name = d["name"]
-            print(f"Creating {station_name}...")
+            if self.debug: print(f"Creating {station_name}...")
             self.stations.append(
                 Station(
                     name=station_name,
@@ -67,6 +66,7 @@ class OvercookedIRLApp:
                     item_handler=self.item_handler,
                     player_zone=d.get("player_zone"),
                     cook_one=d.get("cook_one"),
+                    debug=self.debug
                 )
             )
         self.final_station = FinalStation(
@@ -150,6 +150,8 @@ class OvercookedIRLApp:
             self._begin_round()
 
     def _begin_round(self):
+        if self.debug:
+            print("[GAME STARTED]")
         self.tick_timer.start(TICK_MS)
         self.countdown_timer.start(1000)
         self.order_handler.start_game()
@@ -308,15 +310,30 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="OvercookedIRL")
     parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print debug statements to terminal while the game runs"
+    )
+    parser.add_argument(
         "--final-station",
         action="store_true",
         help="Open the delivery-station window (overrides config's show_window).",
     )
+    parser.add_argument(
+        "--miku",
+        action="store_true",
+        help="Replaces certain game sounds with Hatsune Miku"
+    )
     args = parser.parse_args()
+
+    if args.miku:
+        INC_POINTS_SOUND = pygame.mixer.Sound(os.path.join(BASE_DIR, "assets", "miku-miku-beam-made-with-Voicemod.mp3"))
+    else:
+        INC_POINTS_SOUND = pygame.mixer.Sound(os.path.join(BASE_DIR, "assets", "inc_points.mp3"))
 
     app = QApplication()
     app.setStyleSheet(APP_QSS)
-    ui = OvercookedIRLApp(show_final_window=args.final_station)
+    ui = OvercookedIRLApp(debug=args.debug, show_final_window=args.final_station)
     ui.run()
 
     sys.exit(app.exec())

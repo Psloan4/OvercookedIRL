@@ -8,9 +8,6 @@ class Station:
     READY = "ready"
     SCANNING = "scanning"
 
-    # Print per-event diagnostics ([SCAN START/FINISH], [TARGET DROP]).
-    DEBUG = True
-
     def __init__(
         self,
         name,
@@ -23,6 +20,7 @@ class Station:
         item_handler,
         player_zone=None,
         cook_one=False,
+        debug=False,
     ):
         self.name = str(name),
         self.x = x
@@ -35,6 +33,7 @@ class Station:
         self.item_handler: ItemHandler = item_handler
         self.scan_time = float(scan_time)
         self.burn_time = float(burn_time)
+        self.DEBUG = debug
 
         # Key into PLAYER_ZONES/PLAYER_CAMS, or None if this station never
         # requires a player to be standing beside it.
