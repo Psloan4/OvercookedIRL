@@ -62,7 +62,8 @@ STATION_DEFS = [
          combinable=["sliced_cheese","cooked_patty", "cooked_fries", "sauced_dough"],
          player_zone="2b",
          color=STATION_COLORS["2b"],
-         cook_one=True ),
+         cook_one=True,
+         combine_both=False),
     #Station 3: Plating
     dict(name="Plating",
          x=7 + 155 + 253, y=110, w=196, h=322, scan_time=4, burn_time = 14,
@@ -133,12 +134,19 @@ BASE_STATES = [
 ]
 
 # Combining station will turn both tags in the set to these future states
-COMBINATIONS = {
-    frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_burger"],["complete_burger"],["burnt_patty"]],
-    frozenset({"cooked_patty", "sliced_bun"}): [["assembled_burger"],["complete_burger"]],
-    frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete_cheese_fries"]],
-    frozenset({"sauced_dough", "sliced_cheese"}): [["raw_pizza"], ["cooked_pizza"], ["complete_pizza"]],
-}
+# COMBINATIONS = {
+#     frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_burger"],["complete_burger"],["burnt_patty"]],
+#     frozenset({"cooked_patty", "sliced_bun"}): [["assembled_burger"],["complete_burger"]],
+#     frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete_cheese_fries"]],
+#     frozenset({"sauced_dough", "sliced_cheese"}): [["raw_pizza"], ["cooked_pizza"], ["complete_pizza"]],
+    
+# }
+
+COMBINATIONS = [
+    dict(base="cooked_patty", add_on="sliced_cheese", states=[["cheese_patty"],["assembled_burger"],["complete_burger"],["burnt_patty"]]),
+    dict(base="cooked_fries", add_on="sliced_cheese", states=[["cheese_fries"],["complete_cheese_fries"]]),
+    dict(base="sauced_dough", add_on="sliced_cheese", states=[["raw_pizza"], ["cooked_pizza"], ["complete_pizza"]]),
+]
 
 #List of states that are complete and eligible as an order, and the chances of it being chosen
 COMPLETE_STATES = {
