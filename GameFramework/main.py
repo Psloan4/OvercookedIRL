@@ -38,7 +38,7 @@ class QuitFilter(QObject):
         return super().eventFilter(obj, event)
 
 class OvercookedIRLApp:
-    def __init__(self, debug=False, show_final_window=False):
+    def __init__(self, debug=False, show_final_window=False, playerless=False):
         self.debug = debug
         self.stack = QStackedWidget()
         self.stack.setWindowTitle("OvercookedIRL")
@@ -55,6 +55,9 @@ class OvercookedIRLApp:
         # zone falls back to "always present" so a bad camera can't brick play.
         self.player_feeds: dict[str, FeedRelay] = {}
         for zone_key, url in PLAYER_CAMS.items():
+            if playerless:
+                print("Configuring in playerless mode -- stations treat players as always present")
+                break
             try:
                 self.player_feeds[zone_key] = FeedRelay(url)
             except RuntimeError as e:
@@ -331,6 +334,11 @@ if __name__ == "__main__":
         help="Open the delivery-station window (overrides config's show_window).",
     )
     parser.add_argument(
+        "--playerless",
+        action="store_true",
+        help="All stations work regardless of player presence, useful for testing purposes"
+    )
+    parser.add_argument(
         "--miku",
         action="store_true",
         help="Replaces certain game sounds with Hatsune Miku"
@@ -348,8 +356,7 @@ if __name__ == "__main__":
     # Press Q anywhere to quit, and closing either window closes everything.
     quit_filter = QuitFilter()
     app.installEventFilter(quit_filter)
-
-    ui = OvercookedIRLApp(debug=args.debug, show_final_window=args.final_station)
+    ui = OvercookedIRLApp(debug=args.debug, show_final_window=args.final_station, playerless=args.playerless)
     ui.run()
 
     sys.exit(app.exec())
