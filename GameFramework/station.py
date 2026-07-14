@@ -20,6 +20,7 @@ class Station:
         item_handler,
         player_zone=None,
         cook_one=False,
+        combine_both = False,
         debug=False,
     ):
         self.name = str(name),
@@ -30,9 +31,11 @@ class Station:
         self.type = type
         self.burn_type = burn_type
         self.combinable = combinable
+        self.combine_both = combine_both #bool that determines how combined tags are handled
         self.item_handler: ItemHandler = item_handler
         self.scan_time = float(scan_time)
         self.burn_time = float(burn_time)
+        
         self.DEBUG = debug
 
         # Key into PLAYER_ZONES/PLAYER_CAMS, or None if this station never
@@ -86,9 +89,13 @@ class Station:
     
     def _combine(self, ids, states_list):
         """sets ids to the given state list and removes them from the ready to combine list"""
-        for id in ids:
-            self.item_handler.change_states(id, states_list.copy())
-            del self.combine_ready[id]
+        self.item_handler.change_states(ids[0], states_list.copy())
+        del self.combine_ready[ids[0]]
+        if self.combine_both:
+            self.item_handler.change_states(ids[1], states_list.copy())
+        else:
+            self.item_handler.change_states(ids[1], ["trash"])
+        del self.combine_ready[ids[1]]
 
     def _filter_burn_scans(self):
         """removes all tags from scans except those that are burning, returns number of deleted tags"""
@@ -190,6 +197,9 @@ class Station:
                 self.combine_ready[tag] = now #resets grace period if we see the tag
                 seen_combine_ready.append(tag)
 
+        #true on frames a tag is added to combinable, so we don't keep running inefficent combining code
+        new_combine_ready = False
+
         for tag in list(self.scans.keys()):
             sc = self.scans[tag]
 
@@ -221,6 +231,7 @@ class Station:
                 elif self.item_handler.get_item(tag).state in self.combinable:
                     self.combine_ready[tag] = now
                     seen_combine_ready.append(tag)
+                    new_combine_ready = True
                 else:
                     self.target = None
                     self.item_handler.advance_item(tag)
@@ -228,15 +239,16 @@ class Station:
                 del self.scans[tag]
 
         #process combinations
-        if len(self.combine_ready) > 1:
-            for i, j in itertools.combinations(self.combine_ready, 2):
+        if new_combine_ready and len(self.combine_ready) > 1:
+            for i, j in itertools.permutations(self.combine_ready, 2):
                 i_state = self.item_handler.get_item(i).state
                 j_state = self.item_handler.get_item(j).state
-                for combination in COMBINATIONS.keys():
-                    if (i_state != j_state) and (i_state in combination) and (j_state in combination):
+                if (i_state == j_state): continue
+                for combination in COMBINATIONS:
+                    if (i_state == combination["base"]) and (j_state == combination["add_on"]):
                         if self.DEBUG:
                             print(f"\033[92m[COMBINING]\033[0m Station={''.join(self.name)} Tags={i},{j} Combination={combination}")
-                        self._combine([i,j], COMBINATIONS[combination])
+                        self._combine([i,j], combination["states"])
                         completed.append(i)
                         completed.append(j)
 

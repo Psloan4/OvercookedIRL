@@ -69,6 +69,7 @@ class OvercookedIRLApp:
                     item_handler=self.item_handler,
                     player_zone=d.get("player_zone"),
                     cook_one=d.get("cook_one"),
+                    combine_both=d.get("combine_both"),
                     debug=self.debug
                 )
             )
