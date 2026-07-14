@@ -31,7 +31,7 @@ PLAYER_ZONES = {
 # Each station has a signature colour so players can match item -> zone by colour.
 STATION_COLORS = {
     "1":  "#ef4444",   # Cooking   (red)
-    "2a": "#3b82f6",   # Slicing   (blue)
+    "2a": "#3b82f5",   # Slicing   (blue)
     "2b": "#22c55e",   # Combining (green)
     "3":  "#facc15",   # Plating   (yellow)
     "4":  "rainbow",   # Delivery  (rainbow ring; no on-table zone to tint)
@@ -41,14 +41,14 @@ STATION_DEFS = [
     #Station 1: Cooking
     dict(name="Cooking",
          x=7, y=110, w=155, h=322, scan_time=12, burn_time=12,
-         type=tuple(["raw_patty", "cooked_patty", "cheese_patty", "sliced_fries", "cooked_fries"]),
-         burn_type=tuple(["cooked_patty", "cheese_patty", "cooked_fries"]),
+         type=tuple(["raw_patty", "cooked_patty", "cheese_patty", "sliced_fries", "cooked_fries", "raw_pizza", "cooked_pizza"]),
+         burn_type=tuple(["cooked_patty", "cheese_patty", "cooked_fries", "cooked_pizza"]),
          combinable=[],
          color=STATION_COLORS["1"]),
     #Station 2a: Slicing
     dict(name="Slicing",
          x=7 + 155, y=110, w=253, h=155, scan_time=4,
-         type=tuple(["2a", "raw_potato", "cheese_block"]),
+         type=tuple(["2a", "raw_potato", "cheese_block", "cooked_pizza"]),
          burn_type=tuple([]),
          combinable=[],
          player_zone="2a",
@@ -56,10 +56,10 @@ STATION_DEFS = [
          cook_one = True),
     #Station 2b: Combine 
     dict(name="Assembling",
-         x=7 + 155, y=110 + 155, w=253, h=167, scan_time=3,
-         type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese", "cooked_fries"]),
+         x=7 + 155, y=110 + 155, w=253, h=167, scan_time=2,
+         type= tuple(["cheese_patty", "cooked_patty", "sliced_cheese", "cooked_fries", "dough", "sauced_dough"]),
          burn_type=tuple([]),
-         combinable=["sliced_cheese","cooked_patty", "cooked_fries"],
+         combinable=["sliced_cheese","cooked_patty", "cooked_fries", "sauced_dough"],
          player_zone="2b",
          color=STATION_COLORS["2b"],
          cook_one=True ),
@@ -103,7 +103,7 @@ IDS = {
     5: "CHEESE",
     6: "CONE",
     7: "CONE",
-    8: "FRIES",
+    8: "PIZZA",
     9: "FRIES",
     10: "FRIES",
     11: "PLAYER",  # head tag, player 1
@@ -120,6 +120,7 @@ RECIPIES = {
     "CHEESE":   [["cheese_block"], ["sliced_cheese"]],
     "BUNS":     [["fresh_bun"], ["sliced_bun"]],
     "CONE":     [["cone"], ["vanilla", "chocolate", "strawberry"]],
+    "PIZZA":    [["dough"], ["sauced_dough"]]
 }
 
 #List of starting states so final_station knows not to change these
@@ -127,8 +128,17 @@ BASE_STATES = [
     "raw_patty",
     "raw_potato",
     "cheese_block",
-    "cone"
+    "cone",
+    "dough",
 ]
+
+# Combining station will turn both tags in the set to these future states
+COMBINATIONS = {
+    frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_burger"],["complete_burger"],["burnt_patty"]],
+    frozenset({"cooked_patty", "sliced_bun"}): [["assembled_burger"],["complete_burger"]],
+    frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete_cheese_fries"]],
+    frozenset({"sauced_dough", "sliced_cheese"}): [["raw_pizza"], ["cooked_pizza"], ["complete_pizza"]],
+}
 
 #List of states that are complete and eligible as an order, and the chances of it being chosen
 COMPLETE_STATES = {
@@ -153,23 +163,16 @@ COMPLETE_STATE_ITEM_TYPE = {
     "strawberry":      "CONE",
 }
 
-# Combining station will turn both tags in the set to these future states
-COMBINATIONS = {
-    frozenset({"cooked_patty","sliced_cheese"}): [["cheese_patty"],["assembled_burger"],["complete_burger"],["burnt_patty"]],
-    frozenset({"cooked_patty", "sliced_bun"}): [["assembled_burger"],["complete_burger"]],
-    frozenset({"cooked_fries","sliced_cheese"}): [["cheese_fries"],["complete_cheese_fries"]],
-}
-
 # Item stage -> the station it should be taken to next.
 STAGE_DESTINATION = {
     "raw_patty":       "1",   # cook
     "sliced_fries":    "1",   # cook
     "raw_potato":      "2a",  # slice
-    "cheese_block":      "2a",  # slice
+    "cheese_block":    "2a",  # slice
     "cheese_patty":    "2b",  # combine
     "sliced_cheese":   "2b",  # combine
     "cone":            "3",   # plate
-    "assembled_burger": "3",   # plate
+    "assembled_burger":"3",   # plate
     "cooked_fries":    "3",   # plate
     "cheese_fries":    "3",   # plate
     "cooked_patty":    "2b",  # combine (same path as cheese_patty)
@@ -200,15 +203,15 @@ ASSET_MAP = {
         "raw_patty":        "raw_patty.png",
         "cooked_patty":     "cooked_patty.png",
         "cheese_patty":     "cheese_patty.png",
-        "assembled_burger":  "assembled_burger.png",
-        "complete_burger":         "finished_burger.png",
+        "assembled_burger": "assembled_burger.png",
+        "complete_burger":  "finished_burger.png",
         "burnt_patty":      "burnt_patty.png"
     },
     "FRIES": {
         "raw_potato":       "potato.png",
         "sliced_fries":     "raw_fries.png",
         "cooked_fries":     "cooked_fries.png",
-        "complete_fries":         "finished_fries.png",
+        "complete_fries":   "finished_fries.png",
         "burnt_fries":      "burnt_fries.png",
         "cheese_fries":     "cheese_fries.png",
         "complete_cheese_fries":    "Finished_cheese_fries.png",
@@ -218,10 +221,13 @@ ASSET_MAP = {
         "sliced_cheese":    "sliced_cheese.png",
         "cheese_patty":     "cheese_patty.png",
         "assembled_burger": "assembled_burger.png",
-        "complete_burger":         "finished_burger.png",
+        "complete_burger":  "finished_burger.png",
         "burnt_patty":      "burnt_patty.png",
         "cheese_fries":     "cheese_fries.png",
         "complete_cheese_fries":    "Finished_cheese_fries.png",
+        "raw_pizza":        "poop_potato.png",
+        "cooked_pizza":     "chocolate_melted.png",
+        "complete_pizza":   "lord_crandy_bw.png",
     },
     "CONE": {
         "cone":             "cone.png",
@@ -231,6 +237,13 @@ ASSET_MAP = {
         "vanilla_melted":   "vanilla_melted.png",
         "chocolate_melted": "chocolate_melted.png",
         "strawberry_melted":"strawberry_melted.png",
+    },
+    "PIZZA": {
+        "dough":            "vanilla_melted.png",
+        "sauced_dough":     "potato.png",
+        "raw_pizza":        "poop_potato.png",
+        "cooked_pizza":     "chocolate_melted.png",
+        "complete_pizza":   "lord_crandy_bw.png",
     },
     "THE GHOST": {
         "inert":            "lord_crandy_bw.png"
