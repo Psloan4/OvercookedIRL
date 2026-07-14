@@ -4,7 +4,7 @@ import pygame
 import os
 import argparse
 from PySide6.QtWidgets import QApplication, QStackedWidget
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, QObject, QEvent, Qt
 
 from final_station import FinalStation
 from feed_relay import FeedRelay
@@ -25,6 +25,17 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # how many seconds of "get ready" countdown after Start is clicked
 PREGAME_SECONDS = 5
+
+class QuitFilter(QObject):
+    # Quit the whole app on 'Q', or when any window's X is clicked.
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Q:
+            QApplication.quit()
+            return True
+        if event.type() == QEvent.Close:
+            QApplication.quit()  # let the close proceed; the app exits with it
+        return super().eventFilter(obj, event)
 
 class OvercookedIRLApp:
     def __init__(self, debug=False, show_final_window=False):
@@ -333,6 +344,11 @@ if __name__ == "__main__":
 
     app = QApplication()
     app.setStyleSheet(APP_QSS)
+
+    # Press Q anywhere to quit, and closing either window closes everything.
+    quit_filter = QuitFilter()
+    app.installEventFilter(quit_filter)
+
     ui = OvercookedIRLApp(debug=args.debug, show_final_window=args.final_station)
     ui.run()
 

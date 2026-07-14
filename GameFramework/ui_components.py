@@ -689,8 +689,7 @@ class GamePage(QWidget):
         self.table_view = TableView()
         root.addWidget(self.table_view)
 
-        # Full-page "get ready" overlay, floated above the layout (not in it) so
-        # it covers the frozen table during the pre-game countdown.
+        # Full-page "get ready" overlay
         self.countdown_overlay = QLabel("", self)
         self.countdown_overlay.setObjectName("CountdownOverlay")
         self.countdown_overlay.setAlignment(Qt.AlignCenter)
