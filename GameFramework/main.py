@@ -27,14 +27,21 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PREGAME_SECONDS = 5
 
 class QuitFilter(QObject):
-    # Quit the whole app on 'Q', or when any window's X is clicked.
+    """Quit the whole app on 'Q', or when any window's X is clicked.
+
+    Installed once on the QApplication so it catches these events for every
+    window (game + delivery), not just whichever one currently has focus.
+    """
+
+    def __init__(self, app_ui):
+        super().__init__()
+        self._app_ui = app_ui
 
     def eventFilter(self, obj, event):
-        if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Q:
-            QApplication.quit()
+        quit_key = event.type() == QEvent.KeyPress and event.key() == Qt.Key_Q
+        if quit_key or event.type() == QEvent.Close:
+            self._app_ui.shutdown()  # hard-exits the process; does not return
             return True
-        if event.type() == QEvent.Close:
-            QApplication.quit()  # let the close proceed; the app exits with it
         return super().eventFilter(obj, event)
 
 class OvercookedIRLApp:
@@ -313,6 +320,29 @@ class OvercookedIRLApp:
             })
         return render_list
 
+    def shutdown(self):
+        """Tear everything down and exit the process immediately.
+
+        Each camera FeedRelay runs a daemon thread parked inside a native
+        OpenCV read on a network MJPEG stream. Those native reads can't be
+        interrupted cleanly, so a normal interpreter exit hangs waiting on
+        them and Windows pops the "end the program?" dialog. We stop the Qt
+        timers, signal the reader threads to stop, and then os._exit() so the
+        process dies instantly instead of hanging on the stuck threads.
+
+        NOTE: keep this as os._exit(). Switching to sys.exit()/app.quit()
+        reintroduces the freeze-on-quit, because those wait for the blocked
+        camera threads to finish.
+        """
+        for timer in (self.tick_timer, self.countdown_timer, self.pregame_timer):
+            timer.stop()
+
+        feeds = [self.station_feed_relay, self.final_feed_relay, *self.player_feeds.values()]
+        for feed in feeds:
+            feed._running = False  # ask the reader loop to stop; threads are daemons
+
+        os._exit(0)
+
     def run(self):
         self.stack.setMinimumSize(520, 420)
         self.stack.resize(820, 560)
@@ -354,10 +384,12 @@ if __name__ == "__main__":
     app = QApplication()
     app.setStyleSheet(APP_QSS)
 
-    # Press Q anywhere to quit, and closing either window closes everything.
-    quit_filter = QuitFilter()
-    app.installEventFilter(quit_filter)
     ui = OvercookedIRLApp(debug=args.debug, show_final_window=args.final_station, playerless=args.playerless)
+
+    # Press Q anywhere to quit, and closing either window closes everything.
+    quit_filter = QuitFilter(ui)
+    app.installEventFilter(quit_filter)
+
     ui.run()
 
     sys.exit(app.exec())
