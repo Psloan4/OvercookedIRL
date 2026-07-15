@@ -56,6 +56,10 @@ class OrderHandler:
         if time.time() - self.start_time - recent_order_time > 15:
             self.create_order()
 
+    def shift_time(self, delta: float):
+        if hasattr(self, "start_time"):
+            self.start_time += delta
+
     def clear(self):
         self.orders = []
         self.order_num = 0

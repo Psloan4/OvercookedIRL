@@ -714,6 +714,16 @@ class GamePage(QWidget):
         self.countdown_overlay.raise_()
         self.countdown_overlay.show()
 
+    def show_paused(self):
+        self.countdown_overlay.setGeometry(self.rect())
+        self.countdown_overlay.setText(
+            "<div style='font-size:180px; font-weight:900; letter-spacing:8px;'>PAUSED</div>"
+            "<div style='font-size:44px; font-weight:700;'>"
+            "Space to resume &nbsp;&bull;&nbsp; R to reset</div>"
+        )
+        self.countdown_overlay.raise_()
+        self.countdown_overlay.show()
+
     def hide_countdown(self):
         self.countdown_overlay.hide()
 

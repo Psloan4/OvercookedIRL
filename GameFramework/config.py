@@ -101,7 +101,7 @@ IDS = {
     2: "CHEESE",
     3: "CHEESE",
     4: "CHEESE",
-    5: "CHEESE",
+    5: "PIZZA",
     6: "CONE",
     7: "CONE",
     8: "PIZZA",
@@ -150,10 +150,11 @@ COMBINATIONS = [
 
 #List of states that are complete and eligible as an order, and the chances of it being chosen
 COMPLETE_STATES = {
-    "complete_burger": 33, #does not actually have to add up to 100, but doing so makes it easy to read as percentages
-    "complete_fries": 17,
-    "ice_cream": 33,
-    "complete_cheese_fries": 17,
+    "complete_burger": 20, #does not actually have to add up to 100, but doing so makes it easy to read as percentages
+    "complete_fries": 20,
+    "ice_cream": 20,
+    "complete_cheese_fries": 20,
+    "complete_pizza": 20
 }
 
 #List of ice cream flavors -- used so that all ice cream can be counted as complete and the random flavor is just for fun

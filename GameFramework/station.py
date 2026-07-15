@@ -65,6 +65,21 @@ class Station:
         self.state = self.READY
         self.scans.clear()
 
+    def shift_time(self, delta: float):
+        """Push every wall-clock anchor forward by `delta` seconds.
+
+        Called on resume so time spent paused is discounted: scan accumulators,
+        grace-period timers and combine timeouts continue from exactly where
+        they were instead of treating the pause as elapsed game time.
+        """
+        self.player_last_seen += delta
+        self.target_last_seen += delta
+        for sc in self.scans.values():
+            sc["last_seen"] += delta
+            sc["last_tick"] += delta
+        for tag in self.combine_ready:
+            self.combine_ready[tag] += delta
+
     def _ensure_item(self, tag: int) -> Item | None:
         # This is the "nonexistent tag" guard.
         if not self.item_handler.has_item(tag):

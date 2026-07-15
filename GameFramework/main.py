@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import time
 import pygame
 import os
 import argparse
@@ -23,14 +24,29 @@ pygame.mixer.init()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-# how many seconds of "get ready" countdown after Start is clicked
+# how many seconds of "get ready" countdown after Start is clicked (also
+# replayed when resuming from a pause).
 PREGAME_SECONDS = 5
 
-class QuitFilter(QObject):
-    """Quit the whole app on 'Q', or when any window's X is clicked.
+# Where the app currently is in its lifecycle. Gates the hotkeys: pause/reset
+# only mean something during a live round, and the countdowns are "mid-count"
+# windows where those keys do nothing.
+STATE_IDLE = "idle"          # start / end pages
+STATE_PREGAME = "pregame"    # initial GET READY countdown
+STATE_RUNNING = "running"    # round in progress
+STATE_PAUSED = "paused"      # paused, PAUSED overlay showing
+STATE_RESUMING = "resuming"  # GET READY countdown before resuming
+
+class KeyFilter(QObject):
+    """App-wide hotkeys, plus quit on window close.
 
     Installed once on the QApplication so it catches these events for every
-    window (game + delivery), not just whichever one currently has focus.
+    window (game + delivery), not just whichever one currently has focus:
+      Q      -> quit the whole app
+      Space  -> pause / resume the round (resume replays the GET READY count)
+      R      -> reset back to the Start screen
+    Space and R only act during a live round (see the STATE_* gates below);
+    otherwise the event falls through so buttons keep their normal behavior.
     """
 
     def __init__(self, app_ui):
@@ -38,10 +54,27 @@ class QuitFilter(QObject):
         self._app_ui = app_ui
 
     def eventFilter(self, obj, event):
-        quit_key = event.type() == QEvent.KeyPress and event.key() == Qt.Key_Q
-        if quit_key or event.type() == QEvent.Close:
+        if event.type() == QEvent.Close:
             self._app_ui.shutdown()  # hard-exits the process; does not return
             return True
+
+        if event.type() == QEvent.KeyPress:
+            key = event.key()
+            if key == Qt.Key_Q:
+                self._app_ui.shutdown()  # hard-exits the process; does not return
+                return True
+            if key == Qt.Key_Space:
+                if self._app_ui.state == STATE_RUNNING:
+                    self._app_ui.pause()
+                    return True
+                if self._app_ui.state == STATE_PAUSED:
+                    self._app_ui.resume()
+                    return True
+            if key == Qt.Key_R:
+                if self._app_ui.state in (STATE_RUNNING, STATE_PAUSED):
+                    self._app_ui.reset()
+                    return True
+
         return super().eventFilter(obj, event)
 
 class OvercookedIRLApp:
@@ -49,6 +82,9 @@ class OvercookedIRLApp:
         self.debug = debug
         self.stack = QStackedWidget()
         self.stack.setWindowTitle("OvercookedIRL")
+
+        self.state = STATE_IDLE
+        self._pause_wall = 0.0  # time.time() when the current pause began
 
         self.points = 0
         self.time_left = GAME_SECONDS
@@ -129,6 +165,10 @@ class OvercookedIRLApp:
         self.pregame_timer.timeout.connect(self._pregame_tick)
         self.pregame_left = 0
 
+        self.resume_timer = QTimer(self.stack)
+        self.resume_timer.timeout.connect(self._resume_tick)
+        self.resume_left = 0
+
         self.game_page.set_points(self.points)
         self.game_page.set_time_left(self.time_left)
 
@@ -158,6 +198,7 @@ class OvercookedIRLApp:
         self.stack.setCurrentWidget(self.game_page)
 
         # Frozen "get ready" countdown
+        self.state = STATE_PREGAME
         self.pregame_left = PREGAME_SECONDS
         self.game_page.show_countdown(self.pregame_left)
         self.pregame_timer.start(1000)
@@ -174,20 +215,71 @@ class OvercookedIRLApp:
     def _begin_round(self):
         if self.debug:
             print("[GAME STARTED]")
+        self.state = STATE_RUNNING
         self.tick_timer.start(TICK_MS)
         self.countdown_timer.start(1000)
         self.order_handler.start_game()
 
+    def pause(self):
+        """Freeze the round and show the PAUSED overlay (Space toggles this)."""
+        if self.debug:
+            print("[PAUSED]")
+        self.state = STATE_PAUSED
+        self._pause_wall = time.time()
+        self.tick_timer.stop()
+        self.countdown_timer.stop()
+        self.game_page.show_paused()
+
+    def resume(self):
+        """Kick off the GET READY countdown that leads back into the round."""
+        if self.debug:
+            print("[RESUMING]")
+        self.state = STATE_RESUMING
+        self.resume_left = PREGAME_SECONDS
+        self.game_page.show_countdown(self.resume_left)
+        self.resume_timer.start(1000)
+
+    def _resume_tick(self):
+        self.resume_left -= 1
+        if self.resume_left > 0:
+            self.game_page.show_countdown(self.resume_left)
+        else:
+            self.resume_timer.stop()
+            self.game_page.hide_countdown()
+            self._resume_round()
+
+    def _resume_round(self):
+        # Discount every second spent paused (including this GET READY count) so
+        # scans, grace periods and order pacing pick up where they left off
+        # instead of jumping forward by the paused duration on the next tick.
+        delta = time.time() - self._pause_wall
+        for station in self.stations:
+            station.shift_time(delta)
+        self.order_handler.shift_time(delta)
+
+        self.state = STATE_RUNNING
+        self.tick_timer.start(TICK_MS)
+        self.countdown_timer.start(1000)
+
+    def reset(self):
+        """R hotkey: abandon the current round and return to the Start screen."""
+        if self.debug:
+            print("[RESET]")
+        self.go_to_start()
+
     def end_game(self):
+        self.state = STATE_IDLE
         self.tick_timer.stop()
         self.countdown_timer.stop()
         self.end_page.set_score(self.points)
         self.stack.setCurrentWidget(self.end_page)
 
     def go_to_start(self):
+        self.state = STATE_IDLE
         self.tick_timer.stop()
         self.countdown_timer.stop()
         self.pregame_timer.stop()
+        self.resume_timer.stop()
         self.game_page.hide_countdown()
         self.stack.setCurrentWidget(self.start_page)
 
@@ -334,7 +426,7 @@ class OvercookedIRLApp:
         reintroduces the freeze-on-quit, because those wait for the blocked
         camera threads to finish.
         """
-        for timer in (self.tick_timer, self.countdown_timer, self.pregame_timer):
+        for timer in (self.tick_timer, self.countdown_timer, self.pregame_timer, self.resume_timer):
             timer.stop()
 
         feeds = [self.station_feed_relay, self.final_feed_relay, *self.player_feeds.values()]
@@ -386,9 +478,10 @@ if __name__ == "__main__":
 
     ui = OvercookedIRLApp(debug=args.debug, show_final_window=args.final_station, playerless=args.playerless)
 
-    # Press Q anywhere to quit, and closing either window closes everything.
-    quit_filter = QuitFilter(ui)
-    app.installEventFilter(quit_filter)
+    # App-wide hotkeys (Q quit, Space pause/resume, R reset); closing either
+    # window closes everything.
+    key_filter = KeyFilter(ui)
+    app.installEventFilter(key_filter)
 
     ui.run()
 
