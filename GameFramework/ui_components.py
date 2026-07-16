@@ -660,7 +660,7 @@ class GamePage(QWidget):
     """One big table view: a top bar holds the order tickets (left), points
     (center), and time (right); the table fills the rest of the page."""
 
-    def __init__(self):
+    def __init__(self, show_delivery=False):
         super().__init__()
         root = QVBoxLayout(self)
         root.setContentsMargins(16, 16, 16, 16)
@@ -687,7 +687,22 @@ class GamePage(QWidget):
         root.addLayout(top_row)
 
         self.table_view = TableView()
-        root.addWidget(self.table_view)
+
+        # Optionally embed the delivery station as a narrow panel to the left of
+        # the table (opt-in). Imported lazily to avoid a circular import, since
+        # final_window imports from this module.
+        self.delivery_panel = None
+        if show_delivery:
+            from final_window import FinalStationWindow
+            from config import FINAL_STATION_DEF
+            self.delivery_panel = FinalStationWindow(FINAL_STATION_DEF, embedded=True)
+            bottom = QHBoxLayout()
+            bottom.setSpacing(16)
+            bottom.addWidget(self.delivery_panel, 1)  # ~25% width
+            bottom.addWidget(self.table_view, 3)      # table keeps the rest
+            root.addLayout(bottom)
+        else:
+            root.addWidget(self.table_view)
 
         # Full-page "get ready" overlay
         self.countdown_overlay = QLabel("", self)

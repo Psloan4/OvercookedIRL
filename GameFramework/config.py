@@ -82,7 +82,8 @@ FINAL_STATION_DEF = dict(
     h=84,
     type="4",
     required_frames=2,
-    show_window=True, # if you want to see the final station window or not
+    show_window=True,  # pop the delivery station out into its own window
+    embed_window=False,  # instead/also show it as a panel inside the main window
 )
 
 #Grace seconds determines the amount of time a station can miss a tag before considering it gone

@@ -44,26 +44,37 @@ class _DeliveryFlash(QLabel):
 
 
 class FinalStationWindow(QWidget):
-    def __init__(self, station_def, parent=None):
+    def __init__(self, station_def, parent=None, embedded=False):
         super().__init__(parent)
+        self.embedded = embedded
         self.setWindowTitle("OvercookedIRL - Delivery")
         self.setObjectName("FinalStationWindow")
-        self.setStyleSheet(
-            "QWidget#FinalStationWindow { background-color: #0f172a; }"
-        )
-        self.resize(760, 320)
-        self.setMinimumSize(360, 180)
 
-        # Draw the counter to the real station's aspect ratio.
-        self._aspect = station_def["w"] / station_def["h"]
+        if embedded:
+            # Blend into the main window: transparent (the page shows through),
+            # no counter box, and the counter runs vertically (rotated 90° CCW).
+            self.setAttribute(Qt.WA_StyledBackground, True)
+            self.setStyleSheet(
+                "QWidget#FinalStationWindow { background: transparent; }"
+            )
+            self._aspect = station_def["h"] / station_def["w"]  # tall, not wide
+            title_css = "color: #334155; font-size: 18px; font-weight: 900; letter-spacing: 3px;"
+        else:
+            # Standalone pop-out window keeps its dark theme + horizontal counter.
+            self.setStyleSheet(
+                "QWidget#FinalStationWindow { background-color: #0f172a; }"
+            )
+            self.resize(760, 320)
+            self.setMinimumSize(360, 180)
+            self._aspect = station_def["w"] / station_def["h"]
+            title_css = "color: #e2e8f0; font-size: 26px; font-weight: 900; letter-spacing: 3px;"
+
         self._icons: dict[int, TagIcon] = {}
         self._counter_rect = QRect()
 
         self._title = QLabel("DELIVERY STATION", self)
         self._title.setAlignment(Qt.AlignCenter)
-        self._title.setStyleSheet(
-            "color: #e2e8f0; font-size: 26px; font-weight: 900; letter-spacing: 3px;"
-        )
+        self._title.setStyleSheet(title_css)
 
         self._flash = _DeliveryFlash(self)
 
@@ -89,9 +100,16 @@ class FinalStationWindow(QWidget):
         self._counter_rect = self._compute_counter_rect()
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        p.setBrush(QBrush(QColor("#eef2f8")))     # light counter, matches the table
-        p.setPen(QPen(QColor("#c4cdda"), 3))
-        p.drawRoundedRect(self._counter_rect, 14, 14)
+        if self.embedded:
+            # No backdrop or counter box -- items sit on the page surface, set
+            # off from the table only by a faint divider line down the right.
+            p.setPen(QPen(QColor("#cfd6e2"), 2))
+            x = self.width() - 2
+            p.drawLine(x, 24, x, self.height() - 24)
+        else:
+            p.setBrush(QBrush(QColor("#eef2f8")))   # light counter on the dark window
+            p.setPen(QPen(QColor("#c4cdda"), 3))
+            p.drawRoundedRect(self._counter_rect, 14, 14)
         p.end()
 
         self._title.setGeometry(0, 16, self.width(), 32)
@@ -103,7 +121,10 @@ class FinalStationWindow(QWidget):
         scans = final_status.get("scans", {})
 
         self._counter_rect = self._compute_counter_rect()
-        icon_size = max(28, int(self._counter_rect.height() * 0.5))
+        # Size off the short side so the vertical (embedded) counter doesn't
+        # produce enormous icons.
+        short = min(self._counter_rect.width(), self._counter_rect.height())
+        icon_size = max(28, int(short * 0.5))
 
         seen = set()
         for tag, (nx, ny) in positions.items():
@@ -134,17 +155,25 @@ class FinalStationWindow(QWidget):
         for d in final_status.get("delivered_items", []):
             pm = _load_base_pixmap(d.get("type"), d.get("state"))
             if pm is not None:
-                size = int(self._counter_rect.height() * 0.9)
+                size = int(short * 0.9)
                 pm = pm.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self._flash.play(pm)
 
         self._reposition()
 
+    def _orient(self, nx: float, ny: float) -> tuple[float, float]:
+        """Station-space (0..1) coords -> display coords. The embedded view is
+        rotated 90° counter-clockwise so the counter runs vertically."""
+        if self.embedded:
+            return ny, 1.0 - nx
+        return nx, ny
+
     def _reposition(self):
         r = self._counter_rect
         for icon in self._icons.values():
-            cx = r.x() + icon.nx * r.width()
-            cy = r.y() + icon.ny * r.height()
+            nx, ny = self._orient(icon.nx, icon.ny)
+            cx = r.x() + nx * r.width()
+            cy = r.y() + ny * r.height()
             icon.move(int(cx - icon.width() / 2), int(cy - icon.img_size / 2))
         self._flash.setGeometry(r)
 

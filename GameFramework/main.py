@@ -78,7 +78,7 @@ class KeyFilter(QObject):
         return super().eventFilter(obj, event)
 
 class OvercookedIRLApp:
-    def __init__(self, debug=False, show_final_window=False, playerless=False):
+    def __init__(self, debug=False, show_final_window=False, embed_final_window=False, playerless=False):
         self.debug = debug
         self.stack = QStackedWidget()
         self.stack.setWindowTitle("OvercookedIRL")
@@ -141,14 +141,25 @@ class OvercookedIRLApp:
             if (show_final_window or FINAL_STATION_DEF.get("show_window")) else None
         )
 
+        # The delivery station can also be embedded as a panel inside the main
+        # window (left of the table). Opt-in via --final-embedded or config's
+        # embed_window; independent of the pop-out window above.
+        self._embed_final = embed_final_window or FINAL_STATION_DEF.get("embed_window", False)
+
         self.detector = ArucoTagDetector("DICT_4X4_50")
 
         self.SCAN_EVERY = 3
         self._scan_tick = 0
 
         self.start_page = StartPage(self.start_game)
-        self.game_page = GamePage()
+        self.game_page = GamePage(show_delivery=self._embed_final)
         self.end_page = EndPage(self.go_to_start)
+
+        # Every live view of the delivery station (pop-out window and/or the
+        # embedded panel). Updated/reset together each round.
+        self.final_views = [
+            v for v in (self.final_window, self.game_page.delivery_panel) if v is not None
+        ]
 
         self.stack.addWidget(self.start_page)
         self.stack.addWidget(self.game_page)
@@ -187,8 +198,8 @@ class OvercookedIRLApp:
         for station in self.stations:
             station.reset()
         self.final_station.reset()
-        if self.final_window:
-            self.final_window.reset()
+        for view in self.final_views:
+            view.reset()
         self._scan_tick = 0
 
         self.game_page.set_points(self.points)
@@ -337,8 +348,8 @@ class OvercookedIRLApp:
         for tag in delivered:
             self.inc_points(10)
 
-        if self.final_window:
-            self.final_window.update_view(final_status, self.item_handler)
+        for view in self.final_views:
+            view.update_view(final_status, self.item_handler)
 
 
         self.game_page.update_stations(statuses, self.item_handler)
@@ -457,6 +468,12 @@ if __name__ == "__main__":
         help="Open the delivery-station window (overrides config's show_window).",
     )
     parser.add_argument(
+        "--final-embedded",
+        action="store_true",
+        help="Embed the delivery station as a panel inside the main window "
+             "(left of the table); overrides config's embed_window.",
+    )
+    parser.add_argument(
         "--playerless",
         action="store_true",
         help="All stations work regardless of player presence, useful for testing purposes"
@@ -476,7 +493,12 @@ if __name__ == "__main__":
     app = QApplication()
     app.setStyleSheet(APP_QSS)
 
-    ui = OvercookedIRLApp(debug=args.debug, show_final_window=args.final_station, playerless=args.playerless)
+    ui = OvercookedIRLApp(
+        debug=args.debug,
+        show_final_window=args.final_station,
+        embed_final_window=args.final_embedded,
+        playerless=args.playerless,
+    )
 
     # App-wide hotkeys (Q quit, Space pause/resume, R reset); closing either
     # window closes everything.
