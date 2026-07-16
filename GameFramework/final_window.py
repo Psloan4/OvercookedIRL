@@ -51,14 +51,15 @@ class FinalStationWindow(QWidget):
         self.setObjectName("FinalStationWindow")
 
         if embedded:
-            # Blend into the main window: transparent (the page shows through),
-            # no counter box, and the counter runs vertically (rotated 90° CCW).
+            # Blend into the main window: a transparent panel (the page shows
+            # through) holding a skinny, faded off-white "table" drawn to the
+            # camera outline's proportions, rotated 90° CCW so it runs vertical.
             self.setAttribute(Qt.WA_StyledBackground, True)
             self.setStyleSheet(
                 "QWidget#FinalStationWindow { background: transparent; }"
             )
             self._aspect = station_def["h"] / station_def["w"]  # tall, not wide
-            title_css = "color: #334155; font-size: 18px; font-weight: 900; letter-spacing: 3px;"
+            self._title_h = 60  # room for the station-sized label
         else:
             # Standalone pop-out window keeps its dark theme + horizontal counter.
             self.setStyleSheet(
@@ -67,21 +68,27 @@ class FinalStationWindow(QWidget):
             self.resize(760, 320)
             self.setMinimumSize(360, 180)
             self._aspect = station_def["w"] / station_def["h"]
-            title_css = "color: #e2e8f0; font-size: 26px; font-weight: 900; letter-spacing: 3px;"
+            self._title_h = 32
 
         self._icons: dict[int, TagIcon] = {}
         self._counter_rect = QRect()
 
-        self._title = QLabel("DELIVERY STATION", self)
+        self._title = QLabel("Delivery" if embedded else "DELIVERY STATION", self)
         self._title.setAlignment(Qt.AlignCenter)
-        self._title.setStyleSheet(title_css)
+        if embedded:
+            # Match the other station name labels (QLabel#ZoneName in the QSS).
+            self._title.setObjectName("ZoneName")
+        else:
+            self._title.setStyleSheet(
+                "color: #e2e8f0; font-size: 26px; font-weight: 900; letter-spacing: 3px;"
+            )
 
         self._flash = _DeliveryFlash(self)
 
     def _compute_counter_rect(self) -> QRect:
         """Largest rect matching the station's aspect, below the title, centered."""
         margin = 24
-        top = 56  # room for the title
+        top = 16 + self._title_h + 8  # top pad + title + gap
         avail_w = max(1, self.width() - 2 * margin)
         avail_h = max(1, self.height() - top - margin)
 
@@ -101,18 +108,18 @@ class FinalStationWindow(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         if self.embedded:
-            # No backdrop or counter box -- items sit on the page surface, set
-            # off from the table only by a faint divider line down the right.
-            p.setPen(QPen(QColor("#cfd6e2"), 2))
-            x = self.width() - 2
-            p.drawLine(x, 24, x, self.height() - 24)
+            # A skinny, faded off-white counter matching the camera outline's
+            # proportions -- reads as its own little table beside the main one.
+            p.setBrush(QBrush(QColor("#f5f3ec")))
+            p.setPen(QPen(QColor("#ddd8c9"), 2))
+            p.drawRoundedRect(self._counter_rect, 14, 14)
         else:
             p.setBrush(QBrush(QColor("#eef2f8")))   # light counter on the dark window
             p.setPen(QPen(QColor("#c4cdda"), 3))
             p.drawRoundedRect(self._counter_rect, 14, 14)
         p.end()
 
-        self._title.setGeometry(0, 16, self.width(), 32)
+        self._title.setGeometry(0, 16, self.width(), self._title_h)
         self._reposition()
 
     def update_view(self, final_status: dict, item_handler):
