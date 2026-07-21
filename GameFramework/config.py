@@ -108,9 +108,17 @@ IDS = {
     8: "PIZZA",
     9: "FRIES",
     10: "FRIES",
+
     11: "PLAYER",  # head tag, player 1
     12: "PLAYER",  # head tag, player 2
-    17: "THE GHOST" #sometimes the camera hallucinates tag 17
+    
+    13: "FRIES",
+    14: "FRIES",
+    15: "FRIES",
+    16: "FRIES",
+    17: "THE GHOST", #sometimes the camera hallucinates tag 17
+    18: "FRIES",
+    19: "FRIES",
 }
 
 #Recipies for each food type -- progresses to a random item in the next step until complete.
