@@ -26,7 +26,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # how many seconds of "get ready" countdown after Start is clicked (also
 # replayed when resuming from a pause).
-PREGAME_SECONDS = 5
+PREGAME_SECONDS = 3
 
 # Where the app currently is in its lifecycle. Gates the hotkeys: pause/reset
 # only mean something during a live round, and the countdowns are "mid-count"

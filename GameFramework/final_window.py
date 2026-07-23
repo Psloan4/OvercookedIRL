@@ -131,7 +131,10 @@ class FinalStationWindow(QWidget):
         # Size off the short side so the vertical (embedded) counter doesn't
         # produce enormous icons.
         short = min(self._counter_rect.width(), self._counter_rect.height())
-        icon_size = max(28, int(short * 0.5))
+        # Embedded panel is a skinny vertical strip, so the short side is small
+        # already -- scale icons down further there so they don't crowd it.
+        scale = 0.3 if self.embedded else 0.5
+        icon_size = max(20, int(short * scale))
 
         seen = set()
         for tag, (nx, ny) in positions.items():
