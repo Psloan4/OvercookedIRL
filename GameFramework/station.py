@@ -122,6 +122,13 @@ class Station:
             del self.scans[tag]
         return len(to_delete)
     
+    def get_tags(self):
+        """returns a set of all ids in the station"""
+        #Code may lead to duplicate ids if an item is moved to another station before this station forgets it
+        ids = {id for id in self.scans.keys()}
+        ids.update(self.combine_ready.keys())
+        return ids
+    
         
 
 
