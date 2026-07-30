@@ -18,6 +18,7 @@ from style import APP_QSS
 from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, FINAL_STATION_DEF, TABLE_REGION, PLAYER_CAMS, PLAYER_ZONES, PLAYER_TAG_IDS, STAGE_COLORS
 from ui_components import StartPage, GamePage, EndPage
 from final_window import FinalStationWindow
+from actions_window import ActionsWindow
 
 
 pygame.mixer.init()
@@ -78,7 +79,7 @@ class KeyFilter(QObject):
         return super().eventFilter(obj, event)
 
 class OvercookedIRLApp:
-    def __init__(self, debug=False, show_final_window=False, embed_final_window=False, playerless=False):
+    def __init__(self, debug=False, show_final_window=False, embed_final_window=False, playerless=False, show_actions_window=False):
         self.debug = debug
         self.stack = QStackedWidget()
         self.stack.setWindowTitle("OvercookedIRL")
@@ -161,6 +162,11 @@ class OvercookedIRLApp:
             v for v in (self.final_window, self.game_page.delivery_panel) if v is not None
         ]
 
+        # Optional live "available actions" window (--actions). Reads the same
+        # render_list + orders the game already computes each tick and lists
+        # every legal MOVE/WAIT, ranked. Source of truth is actions.py.
+        self.actions_window = ActionsWindow() if show_actions_window else None
+
         self.stack.addWidget(self.start_page)
         self.stack.addWidget(self.game_page)
         self.stack.addWidget(self.end_page)
@@ -200,6 +206,8 @@ class OvercookedIRLApp:
         self.final_station.reset()
         for view in self.final_views:
             view.reset()
+        if self.actions_window is not None:
+            self.actions_window.reset()
         self._scan_tick = 0
 
         self.game_page.set_points(self.points)
@@ -353,10 +361,14 @@ class OvercookedIRLApp:
 
 
         self.game_page.update_stations(statuses, self.item_handler)
-        self.game_page.update_tags(self._build_render_list(tags, scan_progress, burning_map, combining_map, ready_set))
+        render_list = self._build_render_list(tags, scan_progress, burning_map, combining_map, ready_set)
+        self.game_page.update_tags(render_list)
 
         self.order_handler._tick()
         self.game_page.update_orders(self.order_handler.orders)
+
+        if self.actions_window is not None:
+            self.actions_window.update_view(render_list, self.order_handler.orders, statuses)
 
     def _detect_tags(self, frame) -> list[tuple[int, float, float]]:
         """Return (tag_id, center_x, center_y) for every tag in the frame."""
@@ -452,6 +464,8 @@ class OvercookedIRLApp:
         self.stack.showMaximized()
         if self.final_window:
             self.final_window.show()
+        if self.actions_window:
+            self.actions_window.show()
 
 
 if __name__ == "__main__":
@@ -479,6 +493,11 @@ if __name__ == "__main__":
         help="All stations work regardless of player presence, useful for testing purposes"
     )
     parser.add_argument(
+        "--actions",
+        action="store_true",
+        help="Open the live 'available actions' window (lists every legal MOVE/WAIT, ranked).",
+    )
+    parser.add_argument(
         "--miku",
         action="store_true",
         help="Replaces certain game sounds with Hatsune Miku"
@@ -498,6 +517,7 @@ if __name__ == "__main__":
         show_final_window=args.final_station,
         embed_final_window=args.final_embedded,
         playerless=args.playerless,
+        show_actions_window=args.actions,
     )
 
     # App-wide hotkeys (Q quit, Space pause/resume, R reset); closing either
