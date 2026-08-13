@@ -17,9 +17,11 @@ fi
 
 if [ -f "$HOME/Fetch/personal_ws/devel/setup.bash" ]; then
     source "$HOME/Fetch/personal_ws/devel/setup.bash"
+elif [ -f "$HOME/catkin_ws/devel/setup.bash" ]; then
+    source "$HOME/catkin_ws/devel/setup.bash"
 else
-    echo "WARNING: $HOME/Fetch/personal_ws/devel/setup.bash not found."
-    echo "         Did you run catkin_make in personal_ws?"
+    echo "WARNING: Neither $HOME/Fetch/personal_ws/devel/setup.bash or $HOME/catkin_ws/devel/setup.bash was found."
+    echo "         Did you run catkin_make in your workspace?"
 fi
 
 # Find tin's IP used to reach the Fetch AP
