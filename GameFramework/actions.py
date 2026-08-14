@@ -30,7 +30,7 @@ same list.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from config import (
     STATION_DEFS,
@@ -231,7 +231,9 @@ def _build_covering() -> dict[str, set[str]]:
 
 COVERING = _build_covering()
 
-# Lower priority sorts higher in the list (more worth doing).
+# Lower priority sorts higher in the list (more worth doing). Kept for the
+# coarse kind-bucket sort used by catalog()/reference views; the live ranking in
+# available_actions() uses the richer WEIGHTS score below.
 _KIND_PRIORITY = {
     "deliver": 0,
     "combine": 1,
@@ -240,6 +242,29 @@ _KIND_PRIORITY = {
     "trash": 3,
     "wait": 4,
 }
+
+# --- Scoring weights ---------------------------------------------------------
+# The live "best action" ranking is a plain linear score: each action's total is
+# the sum of a handful of named components drawn from these weights. Nothing is
+# hidden -- every point an action earns comes from one line here, and the window
+# shows the same breakdown. Tune freely; higher total = more worth doing.
+WEIGHTS = {
+    "deliver_ordered":  100.0,  # hand in a dish an order is waiting for
+    "deliver_unordered": -20.0,  # deliverable, but nothing ordered it -> a discard
+    "combine_ready":     70.0,  # partner is on the table, combine now
+    "combine_waiting":   25.0,  # on the combine line but no partner yet
+    "progress_ordered":  55.0,  # advance an item an open order needs
+    "progress_idle":     35.0,  # advance something with no order behind it
+    "start":             40.0,  # put down a base ingredient to begin an open order
+    "trash":             10.0,  # clear dead clutter off the table
+    "wait_holding":      30.0,  # stay put to keep a running scan alive
+    "wait_resetting":    45.0,  # nobody attending -> urgent, progress is draining
+}
+
+# Max bonus added to a delivery for how long its matching order has waited
+# (FIFO fairness). Orders don't expire in this build, so this stays a light nudge
+# rather than a hard deadline pressure.
+URGENCY_MAX = 15.0
 
 
 @dataclass(frozen=True)
@@ -252,6 +277,8 @@ class Action:
     note: str = ""                  # human-readable annotation
     wanted: bool = False            # deliver: is it ordered right now?
     ready: bool = True              # combine: partner present? / wait: player present?
+    score: float = 0.0              # live ranking total (set by available_actions)
+    weights: tuple = ()             # ((component_name, points), ...) that sum to score
 
     @property
     def priority(self) -> int:
@@ -354,6 +381,75 @@ def _start_actions(items, orders) -> list[Action]:
     return starts
 
 
+def _urgency_index(orders) -> "callable[[str], float]":
+    """Build a fn: order_type -> urgency bonus in [0, URGENCY_MAX].
+
+    Older orders (created earlier -> smaller `.time`) score higher, scaled across
+    the spread of currently-open order ages. Returns 0 everywhere if orders carry
+    no `.time` or all share one age.
+    """
+    times_by_type: dict[str, list[float]] = {}
+    for o in orders:
+        t = getattr(o, "time", None)
+        if t is not None:
+            times_by_type.setdefault(o.type, []).append(t)
+    all_times = [t for ts in times_by_type.values() for t in ts]
+    if not all_times:
+        return lambda otype: 0.0
+    tmin, tmax = min(all_times), max(all_times)
+    span = tmax - tmin
+    if span <= 0:
+        return lambda otype: 0.0
+
+    def bonus(otype: str) -> float:
+        ts = times_by_type.get(otype)
+        if not ts:
+            return 0.0
+        oldest = min(ts)  # earliest-created open order of this type = waited longest
+        return round(URGENCY_MAX * (tmax - oldest) / span, 1)
+
+    return bonus
+
+
+def _score_action(a: Action, ordered_cover: set[str], urgency) -> Action:
+    """Attach a linear score + its component breakdown to an action.
+
+    Every component is one line from WEIGHTS (plus an optional urgency nudge on
+    deliveries), so the total is fully explained by `a.weights`.
+    """
+    w: list[tuple[str, float]] = []
+    if a.kind == "deliver":
+        if a.wanted:
+            w.append(("deliver ordered", WEIGHTS["deliver_ordered"]))
+            u = urgency(order_key(a.item_state))
+            if u:
+                w.append(("order waiting", u))
+        else:
+            w.append(("no open order", WEIGHTS["deliver_unordered"]))
+    elif a.kind == "combine":
+        if a.ready:
+            w.append(("partner ready", WEIGHTS["combine_ready"]))
+        else:
+            w.append(("waiting on partner", WEIGHTS["combine_waiting"]))
+    elif a.kind == "progress":
+        if a.item_state in ordered_cover:
+            w.append(("advances an order", WEIGHTS["progress_ordered"]))
+        else:
+            w.append(("advances (no order)", WEIGHTS["progress_idle"]))
+    elif a.kind == "start":
+        w.append(("start ordered dish", WEIGHTS["start"]))
+    elif a.kind == "trash":
+        w.append(("clear clutter", WEIGHTS["trash"]))
+    elif a.kind == "wait":
+        if a.ready:
+            w.append(("holding a scan", WEIGHTS["wait_holding"]))
+        else:
+            w.append(("scan resetting", WEIGHTS["wait_resetting"]))
+
+    total = sum(v for _, v in w)
+    return replace(a, score=total, weights=tuple(w))
+
+
 def available_actions(present_items, orders=(), station_status=None) -> list[Action]:
     """Enumerate every legal action given the current table + orders.
 
@@ -429,7 +525,17 @@ def available_actions(present_items, orders=(), station_status=None) -> list[Act
     actions.extend(_start_actions(items, orders))
     actions.extend(_wait_actions(items, station_status))
 
-    actions.sort(key=lambda a: (a.priority, a.tag if a.tag is not None else 1_000_000))
+    # Score every action so the list is a real ranking, not just kind buckets.
+    # `ordered_cover` = states that advance some open order (its main line), used
+    # to tell "advances an order" progress from idle progress.
+    ordered_cover: set[str] = set()
+    for otype in order_counts:
+        ordered_cover |= COVERING.get(otype, set())
+    urgency = _urgency_index(orders)
+    actions = [_score_action(a, ordered_cover, urgency) for a in actions]
+
+    # Best first; tie-break by tag so identical scores stay in a stable order.
+    actions.sort(key=lambda a: (-a.score, a.tag if a.tag is not None else 1_000_000))
     return actions
 
 

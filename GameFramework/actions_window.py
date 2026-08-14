@@ -1,10 +1,11 @@
 """
-Standalone window listing the actions available right now -- the live output of
-actions.available_actions(). Two humans use it to eyeball the best move; later
-the robot's information-handler will score the same list.
+Standalone window ranking the actions available right now -- the live output of
+actions.available_actions(), best move first. Each row shows the action, its
+total score, and the weighted components that sum to that score (the same
+breakdown the robot's information-handler reads).
 
 Opt in with the --actions CLI flag. Pure view: it just re-renders whatever the
-actions module returns each detection tick.
+actions module returns each detection tick; all scoring lives in actions.py.
 """
 
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QScrollArea
@@ -36,7 +37,7 @@ class ActionsWindow(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        title = QLabel("AVAILABLE ACTIONS", self)
+        title = QLabel("ACTION RANKING", self)
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(
             "color:#e2e8f0; font-size:20px; font-weight:900;"
@@ -68,51 +69,44 @@ class ActionsWindow(QWidget):
         acts = actions_mod.available_actions(present_items, orders, station_status)
         self._body.setText(self._render(acts))
 
-    def _chip(self, a) -> str:
-        color = _KIND_COLOR.get(a.kind, "#e2e8f0")
-        star = " &#9733;" if (a.kind == "deliver" and a.wanted) else ""
-        return (
-            f"&nbsp;&nbsp;<span style='color:{color}'>&#9679;</span> "
-            f"<span style='color:#e2e8f0'>{a.label()}</span>"
-            f"<span style='color:#22c55e; font-weight:700'>{star}</span>"
-        )
-
     def _render(self, acts) -> str:
         if not acts:
             return (
                 "<span style='color:#64748b'>No items on the table yet. "
                 "Place an ingredient, or FETCH one.</span>"
             )
+        # acts arrives already sorted best-first by actions.available_actions().
+        return "".join(self._row(a, i) for i, a in enumerate(acts))
 
-        item_acts = [a for a in acts if a.tag is not None]
-        start_acts = [a for a in acts if a.tag is None and a.kind == "start"]
-        wait_acts = [a for a in acts if a.tag is None and a.kind == "wait"]
+    def _row(self, a, rank: int) -> str:
+        """One ranked action: kind dot, label, total score, weight breakdown."""
+        color = _KIND_COLOR.get(a.kind, "#e2e8f0")
+        if a.score > 0:
+            score_color = "#22c55e"
+        elif a.score < 0:
+            score_color = "#ef4444"
+        else:
+            score_color = "#94a3b8"
 
-        by_tag: dict[tuple, list] = {}
-        for a in item_acts:
-            by_tag.setdefault((a.tag, a.item_state), []).append(a)
+        breakdown = " &middot; ".join(
+            f"{name} {value:+.0f}" for name, value in a.weights
+        ) or "&mdash;"
 
-        rows = []
-        for (tag, state), group in sorted(by_tag.items()):
-            group.sort(key=lambda a: a.priority)
-            chips = "<br>".join(self._chip(a) for a in group)
-            rows.append(
-                "<div style='margin:6px 0'>"
-                f"<span style='color:#f8fafc; font-weight:700'>tag {tag}</span> "
-                f"<span style='color:#94a3b8'>&middot; {state}</span>"
-                f"<br>{chips}</div>"
+        badge = ""
+        if rank == 0:
+            badge = (
+                "<div style='color:#fbbf24; font-weight:800; letter-spacing:2px;"
+                " font-size:12px; margin:8px 0 2px'>&#9733; BEST ACTION</div>"
             )
 
-        rows.append(self._section("START -- open orders", start_acts))
-        rows.append(self._section("WAIT", wait_acts))
-        return "".join(r for r in rows if r)
-
-    def _section(self, heading: str, acts) -> str:
-        if not acts:
-            return ""
-        chips = "<br>".join(self._chip(a) for a in acts)
         return (
-            "<div style='margin:12px 0 4px'>"
-            "<span style='color:#94a3b8; font-weight:700; letter-spacing:1px'>"
-            f"{heading}</span><br>{chips}</div>"
+            f"{badge}"
+            "<div style='margin:6px 0'>"
+            f"<span style='color:{color}'>&#9679;</span> "
+            f"<span style='color:#e2e8f0'>{a.label()}</span> "
+            f"<span style='color:{score_color}; font-weight:800'>"
+            f"&nbsp;{a.score:.0f}</span>"
+            "<br><span style='color:#64748b; font-size:12px'>"
+            f"&nbsp;&nbsp;&nbsp;{breakdown}</span>"
+            "</div>"
         )
