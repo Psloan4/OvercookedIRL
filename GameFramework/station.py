@@ -22,6 +22,7 @@ class Station:
         cook_one=False,
         combine_both = False,
         debug=False,
+        clock=time.time,
     ):
         self.name = str(name),
         self.x = x
@@ -35,7 +36,13 @@ class Station:
         self.item_handler: ItemHandler = item_handler
         self.scan_time = float(scan_time)
         self.burn_time = float(burn_time)
-        
+
+        # All time comes through this one hook. Defaults to the wall clock for
+        # the live game; the headless sim injects a fake clock so it can run a
+        # 150s game in milliseconds, deterministically. Keep new code calling
+        # self._now() rather than time.time() so the sim stays in sync.
+        self._now = clock
+
         self.DEBUG = debug
 
         # Key into PLAYER_ZONES/PLAYER_CAMS, or None if this station never
@@ -109,7 +116,9 @@ class Station:
         if self.combine_both:
             self.item_handler.change_states(ids[1], states_list.copy())
         else:
-            self.item_handler.change_states(ids[1], ["trash"])
+            # Must be a list of stages: change_states pops stage 0 and picks
+            # from it, so ["trash"] would select a single character.
+            self.item_handler.change_states(ids[1], [["trash"]])
         del self.combine_ready[ids[1]]
 
     def _filter_burn_scans(self):
@@ -144,7 +153,7 @@ class Station:
         Returns per-tag progress + the tags that finished a scan
         this tick.
         """
-        now = time.time()
+        now = self._now()
 
     
         reset = False

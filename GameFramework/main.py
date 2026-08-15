@@ -19,6 +19,7 @@ from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DE
 from ui_components import StartPage, GamePage, EndPage
 from final_window import FinalStationWindow
 from actions_window import ActionsWindow
+from actions import NAME_TO_STYPE
 
 
 pygame.mixer.init()
@@ -341,11 +342,14 @@ class OvercookedIRLApp:
         combining_map: dict[int, bool] = {}
         ready_set: set[int] = set()
         statuses: dict[str, dict] = {}
-        for station in self.stations:
+        # The UI zones key off station.type; actions.py needs the "1"/"2a" keys.
+        action_statuses: dict[str, dict] = {}
+        for d, station in zip(STATION_DEFS, self.stations):
             ids = [tag_id for (tag_id, cx, cy) in tags if station.contains(cx, cy)]
             present = player_present.get(station.player_zone, True)
             status = station._tick(ids, present)
             statuses[station.type] = status
+            action_statuses[NAME_TO_STYPE[d["name"]]] = status
             scan_progress.update(status.get("scans", {}))
             burning_map.update(status.get("burning", {}))
             combining_map.update(status.get("combining", {}))
@@ -368,7 +372,7 @@ class OvercookedIRLApp:
         self.game_page.update_orders(self.order_handler.orders)
 
         if self.actions_window is not None:
-            self.actions_window.update_view(render_list, self.order_handler.orders, statuses)
+            self.actions_window.update_view(render_list, self.order_handler.orders, action_statuses)
 
     def _detect_tags(self, frame) -> list[tuple[int, float, float]]:
         """Return (tag_id, center_x, center_y) for every tag in the frame."""
