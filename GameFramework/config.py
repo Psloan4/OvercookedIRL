@@ -154,7 +154,7 @@ BASE_STATES = [
 COMBINATIONS = [
     dict(base="cooked_patty", add_on="sliced_cheese", states=[["cheese_patty"],["assembled_burger"],["complete_burger"],["burnt_patty"]]),
     dict(base="cooked_fries", add_on="sliced_cheese", states=[["cheese_fries"],["complete_cheese_fries"]]),
-    dict(base="sauced_dough", add_on="sliced_cheese", states=[["raw_pizza"], ["cooked_pizza"], ["complete_pizza"]]),
+    dict(base="sauced_dough", add_on="sliced_cheese", states=[["raw_pizza"], ["cooked_pizza"], ["complete_pizza"], ["burnt_pizza"]]),
 ]
 
 #List of states that are complete and eligible as an order, and the chances of it being chosen
@@ -243,9 +243,10 @@ ASSET_MAP = {
         "burnt_patty":      "burnt_patty.png",
         "cheese_fries":     "cheese_fries.png",
         "complete_cheese_fries":    "Finished_cheese_fries.png",
-        "raw_pizza":        "poop_potato.png",
-        "cooked_pizza":     "chocolate_melted.png",
-        "complete_pizza":   "lord_crandy_bw.png",
+        "raw_pizza":        "raw_cheese_pizza.png",
+        "cooked_pizza":     "cooked_pizza.png",
+        "complete_pizza":   "sliced_pizza.png",
+        "burnt_pizza":      "lord_crandy_bw.png" #PLACEHOLDER
     },
     "CONE": {
         "cone":             "cone.png",
@@ -257,11 +258,12 @@ ASSET_MAP = {
         "strawberry_melted":"strawberry_melted.png",
     },
     "PIZZA": {
-        "dough":            "vanilla_melted.png",
-        "sauced_dough":     "potato.png",
-        "raw_pizza":        "poop_potato.png",
-        "cooked_pizza":     "chocolate_melted.png",
-        "complete_pizza":   "lord_crandy_bw.png",
+        "dough":            "dough.png",
+        "sauced_dough":     "sauced_pizza.png",
+        "raw_pizza":        "raw_cheese_pizza.png",
+        "cooked_pizza":     "cooked_pizza.png",
+        "complete_pizza":   "sliced_pizza.png",
+        "burnt_pizza":      "lord_crandy_bw.png" #PLACEHOLDER
     },
     "THE GHOST": {
         "inert":            "lord_crandy_bw.png"
