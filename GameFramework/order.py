@@ -15,9 +15,7 @@ class OrderHandler:
         self.DEBUG = DEBUG
         self.orders = []
         self.order_num = 0
-        # All time comes through this one hook. Defaults to the wall clock for
-        # the live game; the headless sim injects a fake clock so it can run a
-        # 150s game in milliseconds, deterministically.
+        # Defaults to the wall clock for the live game; the headless sim injects a fake clock so it can run a 150s game in milliseconds, deterministically.
         self._now = clock
         
     def create_order(self):
