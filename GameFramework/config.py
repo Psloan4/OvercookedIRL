@@ -180,6 +180,7 @@ COMPLETE_STATE_ITEM_TYPE = {
     "vanilla":         "CONE",
     "chocolate":       "CONE",
     "strawberry":      "CONE",
+    "complete_pizza":  "PIZZA",
 }
 
 # Item stage -> the station it should be taken to next.
