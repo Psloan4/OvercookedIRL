@@ -1,0 +1,16 @@
+{
+  "weights": {
+    "deliver_ordered": 200.0,
+    "deliver_unordered": -40.9,
+    "combine_ready": 161.6,
+    "combine_waiting": 150.0,
+    "progress_ordered": 36.8,
+    "progress_idle": 15.5,
+    "trash": 33.6,
+    "wait_holding": 112.3,
+    "wait_resetting": 49.6,
+    "wait_start_work": 130.0
+  },
+  "train": 43.57142857142857,
+  "holdout": 40.714285714285715
+}

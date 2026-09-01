@@ -65,6 +65,11 @@ _DEST_NAME = {
     DELIVER: "Delivery",
 }
 
+# Config station name -> the key available_actions() expects in station_status.
+# Station.type can't be used: only Slicing's tuple carries its sentinel.
+_DEST_TO_STYPE = {dest: stype for stype, dest in _STYPE_TO_DEST.items()}
+NAME_TO_STYPE = {name: _DEST_TO_STYPE[dest] for name, dest in _NAME_TO_DEST.items()}
+
 # Tokens that appear in a station's `type` tuple but aren't real item states.
 _SENTINELS = {"1", "2a", "2b", "3", "4"}
 
@@ -125,6 +130,14 @@ def _build_partners() -> dict[str, set[str]]:
 
 PRODUCTIVE_DEST = _build_productive_index()
 COMBINE_PARTNERS = _build_partners()
+
+# dest -> the item states that station actually works on. Used to tell whether a
+# gated station has real work sitting in it while nobody is attending.
+_DEST_ACCEPTS: dict[str, set[str]] = {}
+for _d in STATION_DEFS:
+    _dest = _NAME_TO_DEST.get(_d["name"])
+    if _dest:
+        _DEST_ACCEPTS[_dest] = set(_d["type"]) - _SENTINELS
 
 # --- Order -> "what to start" ------------------------------------------------
 # The base ingredients you physically put down to BEGIN each ordered dish. Most
@@ -244,10 +257,8 @@ _KIND_PRIORITY = {
 }
 
 # --- Scoring weights ---------------------------------------------------------
-# The live "best action" ranking is a plain linear score: each action's total is
-# the sum of a handful of named components drawn from these weights. Nothing is
-# hidden -- every point an action earns comes from one line here, and the window
-# shows the same breakdown. Tune freely; higher total = more worth doing.
+# An action's score is the sum of named components drawn from these. Higher
+# total = more worth doing. These are what the sim's optimizer tunes.
 WEIGHTS = {
     "deliver_ordered":  100.0,  # hand in a dish an order is waiting for
     "deliver_unordered": -20.0,  # deliverable, but nothing ordered it -> a discard
@@ -259,6 +270,7 @@ WEIGHTS = {
     "trash":             10.0,  # clear dead clutter off the table
     "wait_holding":      30.0,  # stay put to keep a running scan alive
     "wait_resetting":    45.0,  # nobody attending -> urgent, progress is draining
+    "wait_start_work":   50.0,  # work is sitting at a gated station, unstarted
 }
 
 # Max bonus added to a delivery for how long its matching order has waited
@@ -277,6 +289,7 @@ class Action:
     note: str = ""                  # human-readable annotation
     wanted: bool = False            # deliver: is it ordered right now?
     ready: bool = True              # combine: partner present? / wait: player present?
+    pending: bool = False           # wait: work is sitting here but no scan started
     score: float = 0.0              # live ranking total (set by available_actions)
     weights: tuple = ()             # ((component_name, points), ...) that sum to score
 
@@ -322,7 +335,25 @@ def _wait_actions(present_items, station_status) -> list[Action]:
             continue
         scans = st.get("scans", {}) or {}
         combine_ready = st.get("combine_ready", {}) or {}
+        dest = _STYPE_TO_DEST.get(stype, stype)
         if not scans and not combine_ready:
+            # Gated station with items sitting in it but nothing scanning --
+            # nobody is there to start it. Without this branch there is no
+            # action meaning "go stand at Slicing", so a gated station can
+            # accumulate items forever and the whole line deadlocks.
+            waiting = [
+                t for t in (st.get("ids") or ())
+                if tag_state.get(t) in _DEST_ACCEPTS.get(dest, ())
+            ]
+            if not waiting:
+                continue
+            names = ", ".join(str(tag_state.get(t) or t) for t in waiting[:3])
+            more = f" +{len(waiting) - 3} more" if len(waiting) > 3 else ""
+            waits.append(Action(
+                "WAIT", "wait", dest=dest, item_state=None,
+                note=f"{names}{more} waiting -- nobody there to start it",
+                ready=False, pending=True,
+            ))
             continue
         present = st.get("player_present", True)
         parts = []
@@ -441,7 +472,9 @@ def _score_action(a: Action, ordered_cover: set[str], urgency) -> Action:
     elif a.kind == "trash":
         w.append(("clear clutter", WEIGHTS["trash"]))
     elif a.kind == "wait":
-        if a.ready:
+        if a.pending:
+            w.append(("start waiting work", WEIGHTS["wait_start_work"]))
+        elif a.ready:
             w.append(("holding a scan", WEIGHTS["wait_holding"]))
         else:
             w.append(("scan resetting", WEIGHTS["wait_resetting"]))
@@ -531,6 +564,10 @@ def available_actions(present_items, orders=(), station_status=None) -> list[Act
     ordered_cover: set[str] = set()
     for otype in order_counts:
         ordered_cover |= COVERING.get(otype, set())
+        # COVERING drops the shared cheese line, so add it back for dishes that
+        # need it -- otherwise cheese work never scores as advancing an order.
+        if any(i in _ADD_ON_LINE for i in ORDER_INGREDIENTS.get(otype, ())):
+            ordered_cover |= _ADD_ON_LINE
     urgency = _urgency_index(orders)
     actions = [_score_action(a, ordered_cover, urgency) for a in actions]
 

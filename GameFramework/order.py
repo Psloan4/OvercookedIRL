@@ -11,13 +11,17 @@ class Order:
         self.time = time
 
 class OrderHandler:
-    def __init__(self, DEBUG=False):
+    def __init__(self, DEBUG=False, clock=time.time):
         self.DEBUG = DEBUG
         self.orders = []
         self.order_num = 0
+        # All time comes through this one hook. Defaults to the wall clock for
+        # the live game; the headless sim injects a fake clock so it can run a
+        # 150s game in milliseconds, deterministically.
+        self._now = clock
         
     def create_order(self):
-        time_from_start = time.time() - self.start_time
+        time_from_start = self._now() - self.start_time
         order = Order(time_from_start)
         self.orders.append(order)
         if self.DEBUG:
@@ -39,7 +43,7 @@ class OrderHandler:
         i = self.complete_index(item_state)
         if i is None: return False
         if self.DEBUG:
-            time_to_complete = time.time() - self.orders[i].time - self.start_time
+            time_to_complete = self._now() - self.orders[i].time - self.start_time
             print(f"\033[32m[ORDER COMPLETE]\033[0m: Type = {item_state}, Time = {time_to_complete:.3f}, Index = {i}")
         del self.orders[i]
         self.order_num -= 1
@@ -53,7 +57,7 @@ class OrderHandler:
         if self.order_num > 5:
             return
         recent_order_time = self.orders[self.order_num-1].time
-        if time.time() - self.start_time - recent_order_time > 15:
+        if self._now() - self.start_time - recent_order_time > 15:
             self.create_order()
 
     def shift_time(self, delta: float):
@@ -65,7 +69,7 @@ class OrderHandler:
         self.order_num = 0
     
     def start_game(self):
-        self.start_time = time.time()
+        self.start_time = self._now()
         self.create_order()
         self.create_order()
         self.create_order()
