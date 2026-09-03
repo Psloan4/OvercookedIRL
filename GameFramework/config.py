@@ -162,7 +162,7 @@ COMPLETE_STATES = {
     "complete_burger": 20, #does not actually have to add up to 100, but doing so makes it easy to read as percentages
     "complete_fries": 20,
     "ice_cream": 20,
-    "complete_cheese_fries": 20,
+    "complete_cheese_fries": 0,
     "complete_pizza": 20
 }
 
@@ -176,6 +176,7 @@ COMPLETE_STATE_ITEM_TYPE = {
     "complete_burger": "BURGER",
     "complete_fries":  "FRIES",
     "complete_cheese_fries": "FRIES",
+    "complete_pizza":  "PIZZA",
     "vanilla":         "CONE",
     "chocolate":       "CONE",
     "strawberry":      "CONE",
@@ -186,10 +187,14 @@ COMPLETE_STATE_ITEM_TYPE = {
 STAGE_DESTINATION = {
     "raw_patty":       "1",   # cook
     "sliced_fries":    "1",   # cook
+    "raw_pizza":        "1",   # cook
     "raw_potato":      "2a",  # slice
     "cheese_block":    "2a",  # slice
+    "cooked_pizza":    "2a",   # slice
     "cheese_patty":    "2b",  # combine
     "sliced_cheese":   "2b",  # combine
+    "dough":           "2b",   # combine
+    "sauced_dough":     "2b",  # combine
     "cone":            "3",   # plate
     "assembled_burger":"3",   # plate
     "cooked_fries":    "3",   # plate
