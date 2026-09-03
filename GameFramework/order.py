@@ -51,13 +51,13 @@ class OrderHandler:
     
     def _tick(self):
         """to be called every tick from main, this function handles the system for adding orders periodically"""
-        #ensure at least 2 orders
-        while self.order_num < 2:
+        #ensure at least 1 orders
+        while self.order_num < 1:
             self.create_order()
-        if self.order_num > 5:
+        if self.order_num > 3:
             return
         recent_order_time = self.orders[self.order_num-1].time
-        if self._now() - self.start_time - recent_order_time > 15:
+        if self._now() - self.start_time - recent_order_time > 25:
             self.create_order()
 
     def shift_time(self, delta: float):
