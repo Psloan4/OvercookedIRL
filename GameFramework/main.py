@@ -13,6 +13,7 @@ from item import ItemHandler
 from order import OrderHandler
 from station import Station
 from aruco_tag_detector import ArucoTagDetector
+from sound import SoundEffectPlayer
 
 from style import APP_QSS
 from config import CAMERA_HOST, CAMERA_PORT, STATION_CAMERA_DEV, FINAL_CAMERA_DEV, GAME_SECONDS, TICK_MS, STATION_DEFS, FINAL_STATION_DEF, TABLE_REGION, PLAYER_CAMS, PLAYER_ZONES, PLAYER_TAG_IDS, STAGE_COLORS
@@ -194,7 +195,8 @@ class OvercookedIRLApp:
         self.points += inc
         self.game_page.set_points(self.points)
 
-        INC_POINTS_SOUND.play()
+        # INC_POINTS_SOUND.play()
+        sound_effect_player.play_increment_points()
 
     def start_game(self):
         self.points = 0
@@ -342,6 +344,8 @@ class OvercookedIRLApp:
         combining_map: dict[int, bool] = {}
         ready_set: set[int] = set()
         statuses: dict[str, dict] = {}
+        item_burnt = False
+        item_complete = False
         # The UI zones key off station.type; actions.py needs the "1"/"2a" keys.
         action_statuses: dict[str, dict] = {}
         for d, station in zip(STATION_DEFS, self.stations):
@@ -354,6 +358,16 @@ class OvercookedIRLApp:
             burning_map.update(status.get("burning", {}))
             combining_map.update(status.get("combining", {}))
             ready_set.update(status.get("combine_ready", {}))
+            completed = status.get("completed", [])
+            burnt = status.get("burnt", [])
+            if len(completed) > 0:
+                item_complete = True
+            if len(burnt) > 0:
+                item_burnt = True
+        if item_burnt:
+            sound_effect_player.play_item_burnt()
+        if item_complete:
+            sound_effect_player.play_item_progressed()
 
         final_status = self.final_station._tick()
         delivered = final_status.get("delivered", [])
@@ -363,12 +377,13 @@ class OvercookedIRLApp:
         for view in self.final_views:
             view.update_view(final_status, self.item_handler)
 
-
         self.game_page.update_stations(statuses, self.item_handler)
         render_list = self._build_render_list(tags, scan_progress, burning_map, combining_map, ready_set)
         self.game_page.update_tags(render_list)
 
         self.order_handler._tick()
+        if self.order_handler.order_created:
+            sound_effect_player.play_order_created()
         self.game_page.update_orders(self.order_handler.orders)
 
         if self.actions_window is not None:
@@ -515,6 +530,8 @@ if __name__ == "__main__":
 
     app = QApplication()
     app.setStyleSheet(APP_QSS)
+
+    sound_effect_player = SoundEffectPlayer(args.miku)
 
     ui = OvercookedIRLApp(
         debug=args.debug,
