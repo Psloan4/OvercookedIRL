@@ -17,6 +17,7 @@ class OrderHandler:
         self.order_num = 0
         # Defaults to the wall clock for the live game; the headless sim injects a fake clock so it can run a 150s game in milliseconds, deterministically.
         self._now = clock
+        self.order_created = False
         
     def create_order(self):
         time_from_start = self._now() - self.start_time
@@ -25,6 +26,7 @@ class OrderHandler:
         if self.DEBUG:
             print(f"\033[34m[ORDER CREATED]\033[0m: Type = {order.type}, Time = {order.time:.3f}, Index = {self.order_num}")
         self.order_num += 1
+        self.order_created = True
     
     def complete_index(self, item_state):
         """Returns the lowest possible index of a completed order, or None if no orders exist"""
@@ -49,14 +51,17 @@ class OrderHandler:
     
     def _tick(self):
         """to be called every tick from main, this function handles the system for adding orders periodically"""
-        #ensure at least 2 orders
-        while self.order_num < 2:
+        self.order_created = False #resets to false so it's only true on a tick where one is created
+        #ensure at least 1 orders
+        while self.order_num < 1:
             self.create_order()
-        if self.order_num > 5:
+        if self.order_num > 3:
             return
         recent_order_time = self.orders[self.order_num-1].time
-        if self._now() - self.start_time - recent_order_time > 15:
+        if self._now() - self.start_time - recent_order_time > 25:
             self.create_order()
+
+
 
     def shift_time(self, delta: float):
         if hasattr(self, "start_time"):

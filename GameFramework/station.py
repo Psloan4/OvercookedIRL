@@ -222,8 +222,6 @@ class Station:
                 if self.DEBUG:
                     print(f"[BURN SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
 
-        completed: list[int] = []
-
         seen_combine_ready = []
         for tag in ids:
             if (tag in self.combine_ready):
@@ -232,6 +230,8 @@ class Station:
 
         #true on frames a tag is added to combinable, so we don't keep running inefficent combining code
         new_combine_ready = False
+        completed: list[int] = []
+        burnt: list[int] = []
 
         for tag in list(self.scans.keys()):
             sc = self.scans[tag]
@@ -261,6 +261,7 @@ class Station:
                     print(f"[SCAN FINISH] Station={self.name} Tag={tag} seen_time={sc['accum']:.3f}")
                 if self.item_handler.get_item(tag).state in self.burn_type:
                     self.item_handler.burn_item(tag)
+                    burnt.append(tag)
                 elif self.item_handler.get_item(tag).state in self.combinable:
                     self.combine_ready[tag] = now
                     seen_combine_ready.append(tag)
@@ -268,7 +269,7 @@ class Station:
                 else:
                     self.target = None
                     self.item_handler.advance_item(tag)
-                completed.append(tag)
+                    completed.append(tag)
                 del self.scans[tag]
 
         #process combinations
@@ -308,7 +309,8 @@ class Station:
             "scans": scans_progress,   # tag -> 0..1 for every active scan
             "burning": burning,        # tag -> True if this scan is a burn
             "combining": combining,
-            "completed": completed,    # tags that finished a scan this tick
+            "completed": completed,
+            "burnt" : burnt,
             "ids": ids,
             "gated": self.player_zone is not None,
             "player_present": player_present,

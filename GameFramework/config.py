@@ -279,4 +279,14 @@ ASSET_MAP = {
     }
 }
 
+SOUND_EFFECTS = {
+    # title of sound effect : ["filename of default sound effect", "filename of optional alternate joke sound effect"]
+    "increment_points"  : ["inc_points.mp3", "miku-miku-beam-made-with-Voicemod.mp3"],
+    "order_created"     : ["inc_points.mp3"],
+    "item_progressed"   : ["inc_points.mp3"],
+    "item_burnt"        : ["inc_points.mp3"],
+}
+
+
+
 # hi my name is bryson and i like to eat food and barbecue and i like overcooked even though i dont really play it. but i love overcookedirl even moreeeeeeeee.
