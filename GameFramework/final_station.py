@@ -2,7 +2,8 @@ from aruco_tag_detector import ArucoTagDetector
 from feed_relay import FeedRelay
 from item import Item, ItemHandler
 from order import Order, OrderHandler
-from config import BASE_STATES, ICE_CREAM_FLAVORS
+from config import BASE_STATES
+from delivery import resolve_delivery, SCORED
 
 
 class FinalStation:
@@ -44,10 +45,21 @@ class FinalStation:
         if image is None:
             if self.DEBUG:
                 print("[FINAL] no frame from final camera (cam/1)")
-            return {"state": self.UNCOMPLETE, "delivered": [], "delivered_items": [],
-                    "ids": [], "scans": {}, "positions": {}}
+            return self.empty_status()
+        return self.process(self._detect_tags(image))
 
-        tags = self._detect_tags(image)
+    @staticmethod
+    def empty_status() -> dict:
+        return {"state": FinalStation.UNCOMPLETE, "delivered": [],
+                "delivered_items": [], "ids": [], "scans": {}, "positions": {}}
+
+    def process(self, tags: list[tuple[int, float, float]]) -> dict:
+        """Run the delivery rule over already-located tags.
+
+        Split out from _tick so callers that know where things are without a
+        camera -- the Godot bridge, tests -- reuse this instead of copying it.
+        tags are (tag_id, cx, cy) in full-frame pixel coords.
+        """
         # tag -> position normalized (0..1) within the station region, for the UI.
         positions = {
             tag_id: ((cx - self.x) / self.w, (cy - self.y) / self.h)
@@ -84,20 +96,18 @@ class FinalStation:
 
             self.frames_seen[tag] = self.frames_seen.get(tag, 0) + 1
             if self.frames_seen[tag] >= self.required_frames:
-                item_type = item.type
-                orig_state = self.item_handler.item_state(tag)
-                state = orig_state
-                if state in ICE_CREAM_FLAVORS:
-                    state = "ice_cream"
-                self.item_handler.remove_item(tag)
                 self.frames_seen.pop(tag, None)
-                if self.order_handler.complete_order(state):
+                status, record = resolve_delivery(
+                    self.item_handler, self.order_handler, tag
+                )
+                if status == SCORED:
                     delivered.append(tag)
-                    # Captured before removal so the delivery UI can show the
-                    # actual item that was delivered.
-                    delivered_items.append({"type": item_type, "state": orig_state})
-                    #If a future dev wants to implement dynamic scoring, just append the amount of points the completed order should score to delivered
-                    #main never actually uses this tag, it just uses the fact that it exists to add points
+                    # The record carries the item as it was before removal, so
+                    # the delivery UI can show what was actually delivered.
+                    delivered_items.append(
+                        {"type": record["type"], "state": record["state"],
+                         "points": record["points"]}
+                    )
 
         scans = {
             tag: min(frames / self.required_frames, 1.0)

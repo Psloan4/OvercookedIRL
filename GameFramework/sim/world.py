@@ -16,10 +16,9 @@ from dataclasses import dataclass, field
 from config import (
     STATION_DEFS,
     GAME_SECONDS,
-    BASE_STATES,
-    ICE_CREAM_FLAVORS,
     IDS,
 )
+from delivery import resolve_delivery, SCORED, BINNED, NOTHING
 from item import ItemHandler
 from order import OrderHandler
 from station import Station
@@ -161,24 +160,24 @@ class World:
             statuses[self._stype[id(st)]] = status
         return statuses
 
-    # --- delivery (mirrors final_station.py, minus the camera) --------------
+    # --- delivery -----------------------------------------------------------
 
     def _resolve_delivery(self, tag: int):
         state = self.items.item_state(tag)
-        if state is None or state in BASE_STATES:
-            return  # raw ingredients do nothing at delivery; they just sit there
-        key = "ice_cream" if state in ICE_CREAM_FLAVORS else state
-        # final_station removes the item whether or not it scored -- delivery
-        # doubles as the bin.
-        self.items.remove_item(tag)
-        if self.orders.complete_order(key):
-            self.points += 10
-            self.delivered.append(state)
+        status, record = resolve_delivery(self.items, self.orders, tag)
+        if status == NOTHING:
+            return  # raw ingredient: it just sits at Delivery, tag not freed
+        if status == SCORED:
+            self.points += record["points"]
+            self.delivered.append(record["state"])
             if self.debug:
-                print(f"  [{self.now:6.1f}s] DELIVERED {state} (+10)")
-        elif self.debug:
+                print(f"  [{self.now:6.1f}s] DELIVERED {record['state']} "
+                      f"(+{record['points']})")
+        elif status == BINNED and self.debug:
             print(f"  [{self.now:6.1f}s] binned {state} (no order)")
-        # The physical tag goes back in the pool as a fresh ingredient.
+        # The physical tag goes back in the pool as a fresh ingredient. The
+        # live game gets this for free -- its camera re-creates the tag next
+        # frame -- so it stays out of the shared rule.
         self.items.create_item(tag)
         self.location[tag] = TABLE
 

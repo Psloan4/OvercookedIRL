@@ -370,9 +370,9 @@ class OvercookedIRLApp:
             sound_effect_player.play_item_progressed()
 
         final_status = self.final_station._tick()
-        delivered = final_status.get("delivered", [])
-        for tag in delivered:
-            self.inc_points(10)
+        # Each delivered record carries its own score (see delivery.POINTS).
+        for record in final_status.get("delivered_items", []):
+            self.inc_points(record["points"])
 
         for view in self.final_views:
             view.update_view(final_status, self.item_handler)
