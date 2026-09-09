@@ -11,6 +11,17 @@ from PySide6.QtCore import Qt, QRect, QVariantAnimation, QEasingCurve
 from PySide6.QtGui import QPainter, QColor, QBrush, QPen
 
 from ui_components import TagIcon, _load_base_pixmap
+from config import STATION_COLORS
+
+
+def _blend(hex_color: str, other: str, t: float) -> QColor:
+    """Mix two hex colors; t=0 is hex_color, t=1 is other."""
+    a, b = QColor(hex_color), QColor(other)
+    return QColor(
+        round(a.red() + (b.red() - a.red()) * t),
+        round(a.green() + (b.green() - a.green()) * t),
+        round(a.blue() + (b.blue() - a.blue()) * t),
+    )
 
 
 class _DeliveryFlash(QLabel):
@@ -50,10 +61,14 @@ class FinalStationWindow(QWidget):
         self.setWindowTitle("OvercookedIRL - Delivery")
         self.setObjectName("FinalStationWindow")
 
+        self.color = station_def.get("color") or STATION_COLORS["4"]
+        self._counter_fill = _blend(self.color, "#ffffff", 0.82)
+        self._counter_edge = _blend(self.color, "#ffffff", 0.15)
+
         if embedded:
             # Blend into the main window: a transparent panel (the page shows
-            # through) holding a skinny, faded off-white "table" drawn to the
-            # camera outline's proportions, rotated 90° CCW so it runs vertical.
+            # through) holding a skinny "table" in the delivery colour, drawn to
+            # the camera outline's proportions, rotated 90° CCW so it runs vertical.
             self.setAttribute(Qt.WA_StyledBackground, True)
             self.setStyleSheet(
                 "QWidget#FinalStationWindow { background: transparent; }"
@@ -76,11 +91,15 @@ class FinalStationWindow(QWidget):
         self._title = QLabel("Delivery" if embedded else "DELIVERY STATION", self)
         self._title.setAlignment(Qt.AlignCenter)
         if embedded:
-            # Match the other station name labels (QLabel#ZoneName in the QSS).
+            # Match the other station name labels (QLabel#ZoneName in the QSS),
+            # tinted with the delivery colour.
             self._title.setObjectName("ZoneName")
+            self._title.setStyleSheet(f"color: {_blend(self.color, '#000000', 0.25).name()};")
         else:
             self._title.setStyleSheet(
-                "color: #e2e8f0; font-size: 26px; font-weight: 900; letter-spacing: 3px;"
+                f"color: {_blend(self.color, '#ffffff', 0.35).name()};"
+                " font-size: 26px; font-weight: 900;"
+                " letter-spacing: 3px;"
             )
 
         self._flash = _DeliveryFlash(self)
@@ -107,16 +126,10 @@ class FinalStationWindow(QWidget):
         self._counter_rect = self._compute_counter_rect()
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        if self.embedded:
-            # A skinny, faded off-white counter matching the camera outline's
-            # proportions -- reads as its own little table beside the main one.
-            p.setBrush(QBrush(QColor("#f5f3ec")))
-            p.setPen(QPen(QColor("#ddd8c9"), 2))
-            p.drawRoundedRect(self._counter_rect, 14, 14)
-        else:
-            p.setBrush(QBrush(QColor("#eef2f8")))   # light counter on the dark window
-            p.setPen(QPen(QColor("#c4cdda"), 3))
-            p.drawRoundedRect(self._counter_rect, 14, 14)
+
+        p.setBrush(QBrush(self._counter_fill))
+        p.setPen(QPen(self._counter_edge, 2 if self.embedded else 3))
+        p.drawRoundedRect(self._counter_rect, 14, 14)
         p.end()
 
         self._title.setGeometry(0, 16, self.width(), self._title_h)

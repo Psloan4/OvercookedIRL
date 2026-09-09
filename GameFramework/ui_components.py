@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QProgressBar, QPushButton, QSizePolicy, QGraphicsOpacityEffect
 )
 from PySide6.QtCore import Qt, QRect, QTimer, QVariantAnimation, QEasingCurve
-from PySide6.QtGui import QPainter, QPixmap, QColor, QFont, QBrush, QPen, QConicalGradient
+from PySide6.QtGui import QPainter, QPixmap, QColor, QFont, QBrush, QPen
 
 from station import Station
 from config import ASSET_MAP, COMPLETE_STATE_ITEM_TYPE, TABLE_CM, TABLE_REGION, STATION_DEFS
@@ -139,11 +139,8 @@ class _ItemImage(QLabel):
     """Item picture that paints a colored 'destination' ring on top of itself.
 
     ring_color is None (no ring), a "#rrggbb" hex string (solid ring), or the
-    sentinel "rainbow" (conical-gradient ring, used for the delivery station).
+    sentinel "green_yellow" (half-and-half ring for items with two destinations).
     """
-
-    _RAINBOW = ["#ff0000", "#ff9900", "#ffee00", "#33cc33",
-                "#3399ff", "#9933ff", "#ff0000"]
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -196,13 +193,7 @@ class _ItemImage(QLabel):
 
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        if self.ring_color == "rainbow":
-            grad = QConicalGradient(rect.center(), 0)
-            n = len(self._RAINBOW)
-            for i, c in enumerate(self._RAINBOW):
-                grad.setColorAt(i / (n - 1), QColor(c))
-            p.setPen(QPen(QBrush(grad), w))
-        elif self.ring_color == "green_yellow":
+        if self.ring_color == "green_yellow":
             p.setBrush(Qt.NoBrush)
             p.setPen(QPen(QColor("#22c55e"), w))
             p.drawArc(rect, 45 * 16, 180 * 16)

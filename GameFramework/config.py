@@ -34,7 +34,7 @@ STATION_COLORS = {
     "2a": "#3b82f5",   # Slicing   (blue)
     "2b": "#22c55e",   # Combining (green)
     "3":  "#facc15",   # Plating   (yellow)
-    "4":  "rainbow",   # Delivery  (rainbow ring; no on-table zone to tint)
+    "4":  "#a855f7",   # Delivery  (purple)
 }
 
 STATION_DEFS = [
@@ -84,6 +84,7 @@ FINAL_STATION_DEF = dict(
     required_frames=2,
     show_window=True,  # pop the delivery station out into its own window
     embed_window=False,  # instead/also show it as a panel inside the main window
+    color=STATION_COLORS["4"],
 )
 
 #Grace seconds determines the amount of time a station can miss a tag before considering it gone
