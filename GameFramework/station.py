@@ -24,7 +24,7 @@ class Station:
         debug=False,
         clock=time.time,
     ):
-        self.name = str(name),
+        self.name = str(name)
         self.x = x
         self.y = y
         self.w = w
@@ -165,7 +165,7 @@ class Station:
                 # self.scans.clear()
                 wiped = self._filter_burn_scans()
                 if self.DEBUG and (wiped > 0):
-                    print(f"[SCAN RESET] Station={''.join(self.name)} player left zone "
+                    print(f"[SCAN RESET] Station={self.name} player left zone "
                         f"(dropped {wiped} scan(s))")
                 self.state = self.READY
                 self.target = None
@@ -190,14 +190,16 @@ class Station:
                         self.target = None
                         self.scans.clear()
             #Case we have a target and we see it
-                for tag in ids:
-                    if (tag == self.target):
-                        self.target_last_seen = now
-                    if (tag != self.target):
-                        if (tag in self.combine_ready) or (self._is_burning(tag)):
-                            continue
-                        else:
-                            ids.remove(tag)
+                if self.target in ids:
+                    self.target_last_seen = now
+                # Keep the target plus anything combine-ready or burning. Rebuilt
+                # in place: removing while iterating skipped tags.
+                ids[:] = [
+                    tag for tag in ids
+                    if tag == self.target
+                    or tag in self.combine_ready
+                    or self._is_burning(tag)
+                ]
 
 
         # Start a scan for any present, matching item we aren't already tracking.
@@ -209,16 +211,16 @@ class Station:
                 if (tag == self.target) and (player_present):
                     self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
                     if self.DEBUG:
-                        print(f"[SCAN START] Station={''.join(self.name)} Tag={tag} scan_time={self.scan_time}")
+                        print(f"[SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
             else:
                 if self._matches(tag) and (player_present):
                     self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
                     if self.DEBUG:
-                        print(f"[SCAN START] Station={''.join(self.name)} Tag={tag} scan_time={self.scan_time}")
+                        print(f"[SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
             if (self._is_burning(tag)) and (self._matches(tag)):
                 self.scans[tag] = {"accum": 0.0, "last_seen": now, "last_tick": now}
                 if self.DEBUG:
-                    print(f"[BURN SCAN START] Station={''.join(self.name)} Tag={tag} scan_time={self.scan_time}")
+                    print(f"[BURN SCAN START] Station={self.name} Tag={tag} scan_time={self.scan_time}")
 
         completed: list[int] = []
 
@@ -246,7 +248,7 @@ class Station:
                 if (now - sc["last_seen"]) > GRACE_SECONDS:
                     if self.DEBUG:
                         print(
-                            f"[SCAN DROP] Station={''.join(self.name)} Tag={tag} gone>{GRACE_SECONDS}s "
+                            f"[SCAN DROP] Station={self.name} Tag={tag} gone>{GRACE_SECONDS}s "
                             f"(lost {sc['accum']:.1f}/{self.scan_time}s)"
                         )
                     del self.scans[tag]
@@ -256,7 +258,7 @@ class Station:
             if self._progress(tag, sc["accum"]) >= 1.0:
                 self.target = None
                 if self.DEBUG:
-                    print(f"[SCAN FINISH] Station={''.join(self.name)} Tag={tag} seen_time={sc['accum']:.3f}")
+                    print(f"[SCAN FINISH] Station={self.name} Tag={tag} seen_time={sc['accum']:.3f}")
                 if self.item_handler.get_item(tag).state in self.burn_type:
                     self.item_handler.burn_item(tag)
                 elif self.item_handler.get_item(tag).state in self.combinable:
@@ -278,7 +280,7 @@ class Station:
                 for combination in COMBINATIONS:
                     if (i_state == combination["base"]) and (j_state == combination["add_on"]):
                         if self.DEBUG:
-                            print(f"\033[92m[COMBINING]\033[0m Station={''.join(self.name)} Tags={i},{j} Combination={combination}")
+                            print(f"\033[92m[COMBINING]\033[0m Station={self.name} Tags={i},{j} Combination={combination}")
                         self._combine([i,j], combination["states"])
                         completed.append(i)
                         completed.append(j)
@@ -291,7 +293,7 @@ class Station:
 
         for tag in deleted_tags:
             if self.DEBUG:
-                print(f"[FORGETTING] Station={''.join(self.name)} Tag={tag}")
+                print(f"[FORGETTING] Station={self.name} Tag={tag}")
             del self.combine_ready[tag]
 
         scans_progress = {tag: self._progress(tag, sc["accum"]) for tag, sc in self.scans.items()}
