@@ -16,6 +16,9 @@ from __future__ import annotations
 from config import (
     STATION_DEFS,
     FINAL_STATION_DEF,
+    FINAL_STATION_TABLE_RECT,
+    FINAL_STATION_CM,
+    FINAL_STATION_SECTIONS,
     GAME_SECONDS,
     GRACE_SECONDS,
     STATION_COLORS,
@@ -35,6 +38,13 @@ from station import Station
 # Tags that are real food. Player head tags and the camera's phantom tag 17
 # never become items.
 FOOD_TAGS = tuple(t for t, kind in IDS.items() if kind not in ("PLAYER", "THE GHOST"))
+
+
+def bridge_final_def() -> dict:
+    """FINAL_STATION_DEF with its delivery-camera crop swapped for the board's
+    place in table space -- the one frame observations arrive in."""
+    x, y, w, h = FINAL_STATION_TABLE_RECT
+    return {**FINAL_STATION_DEF, "x": x, "y": y, "w": w, "h": h}
 
 
 def build_stations(item_handler, clock, debug=False):
@@ -89,7 +99,9 @@ def client_config() -> dict:
             for d in STATION_DEFS
         ],
         "final_station": {
-            k: FINAL_STATION_DEF[k] for k in ("x", "y", "w", "h", "color")
+            **{k: bridge_final_def()[k] for k in ("x", "y", "w", "h", "color")},
+            "cm": list(FINAL_STATION_CM),
+            "sections": list(FINAL_STATION_SECTIONS),
         },
         "player_zones": {k: dict(v) for k, v in PLAYER_ZONES.items()},
         "station_colors": dict(STATION_COLORS),
@@ -113,7 +125,7 @@ class Engine:
         self.orders = OrderHandler(DEBUG=debug, clock=clock)
         self.stations, self._stype = build_stations(self.items, clock, debug)
         # feed_relay is None: we only ever call process(), never _tick().
-        self.final = FinalStation(None, self.items, self.orders, FINAL_STATION_DEF)
+        self.final = FinalStation(None, self.items, self.orders, bridge_final_def())
 
     def start(self):
         """Begin the round. Items are created lazily, exactly as the camera

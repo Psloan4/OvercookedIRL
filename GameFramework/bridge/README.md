@@ -48,6 +48,12 @@ to the station rect instead (`PRESENCE_REACH`), assigning each body to the neare
 gated station only -- the gated rects sit side by side, so any reachable padding
 would otherwise overlap them and let one body attend all three.
 
+`FINAL_STATION_DEF`'s rect had the same problem -- it is a crop in the *delivery*
+camera's frame, not table space. So the board's real size lives in
+`FINAL_STATION_CM` (2.5ft x 1ft, five sections of two blocks) and
+`FINAL_STATION_TABLE_RECT` derives its place in table space from that. The
+bridge engine and Godot use the derived rect; the live game still uses the crop.
+
 The four station rects exactly tile `TABLE_REGION`, and each one touches a
 different outer edge (Cooking left, Slicing top, Assembling bottom, Plating
 right), so a solid table with bodies walking around it reaches everything.

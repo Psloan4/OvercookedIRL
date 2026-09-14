@@ -16,8 +16,9 @@ import subprocess
 import sys
 import time
 
+from bridge.engine import bridge_final_def
 from bridge.protocol import HOST, PORT, LineReader, encode
-from config import STATION_DEFS, FINAL_STATION_DEF
+from config import STATION_DEFS
 
 DT = 1.0 / 60.0
 
@@ -25,8 +26,8 @@ CENTRE = {
     stype: (d["x"] + d["w"] / 2, d["y"] + d["h"] / 2)
     for stype, d in zip(["1", "2a", "2b", "3"], STATION_DEFS)
 }
-CENTRE["4"] = (FINAL_STATION_DEF["x"] + FINAL_STATION_DEF["w"] / 2,
-               FINAL_STATION_DEF["y"] + FINAL_STATION_DEF["h"] / 2)
+_F = bridge_final_def()
+CENTRE["4"] = (_F["x"] + _F["w"] / 2, _F["y"] + _F["h"] / 2)
 TABLE = (600.0, 400.0)
 
 

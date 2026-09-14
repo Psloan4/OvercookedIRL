@@ -97,29 +97,24 @@ GRID_PLACEMENT = {
     "3":  (0, 2, 2, 1),
 }
 
+# Two physical blocks per food type, matching the five sections of the
+# real delivery board. A block added here needs one printed there.
 IDS = {
     0: "BURGER",
     1: "BURGER",
     2: "CHEESE",
     3: "CHEESE",
-    4: "CHEESE",
     5: "PIZZA",
+    8: "PIZZA",
     6: "CONE",
     7: "CONE",
-    8: "PIZZA",
     9: "FRIES",
     10: "FRIES",
 
     11: "PLAYER",  # head tag, player 1
     12: "PLAYER",  # head tag, player 2
-    
-    13: "FRIES",
-    14: "FRIES",
-    15: "FRIES",
-    16: "FRIES",
+
     17: "THE GHOST", #sometimes the camera hallucinates tag 17
-    18: "FRIES",
-    19: "FRIES",
 }
 
 #Recipies for each food type -- progresses to a random item in the next step until complete.
@@ -221,6 +216,27 @@ TABLE_CM = (117, 62)
 
 # Bounding box of the table within the camera frame, in pixels: (x, y, w, h).
 TABLE_REGION = (7, 110, 604, 322)
+
+# --- Delivery board ---------------------------------------------------------
+# The board is 2.5ft x 1ft, split into five equal sections, two blocks resting
+# in each. FINAL_STATION_DEF's rect is a crop in the DELIVERY camera's frame,
+# so it says nothing about where the board is or how big; these do.
+FINAL_STATION_CM = (76.2, 30.5)
+FINAL_STATION_SECTIONS = ("BURGER", "PIZZA", "CHEESE", "CONE", "FRIES")
+FINAL_STATION_GAP_CM = 5.0   # clearance between table edge and board
+
+# The board in TABLE space, derived from its real size: centred below the
+# table. Simulators place and test against this; the live game reads the
+# delivery camera and uses FINAL_STATION_DEF's crop instead.
+_PX_PER_CM = (TABLE_REGION[2] / TABLE_CM[0], TABLE_REGION[3] / TABLE_CM[1])
+_BOARD_W = FINAL_STATION_CM[0] * _PX_PER_CM[0]
+_BOARD_H = FINAL_STATION_CM[1] * _PX_PER_CM[1]
+FINAL_STATION_TABLE_RECT = (
+    TABLE_REGION[0] + TABLE_REGION[2] / 2 - _BOARD_W / 2,
+    TABLE_REGION[1] + TABLE_REGION[3] + FINAL_STATION_GAP_CM * _PX_PER_CM[1],
+    _BOARD_W,
+    _BOARD_H,
+)
 
 # Item image per (type, stage): the picture changes as an item progresses.
 ASSET_MAP = {

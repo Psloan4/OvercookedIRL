@@ -89,24 +89,48 @@ func _on_config(config: Dictionary) -> void:
 			_gated[zone] = Rect2(_to_world(s["x"], s["y"]),
 				Vector2(s["w"], s["h"]) * WORLD_SCALE)
 
+	# The delivery board is a real object, so config.py hands it over already
+	# sized and placed in table space -- not the camera crop the live game uses.
 	var f: Dictionary = config.get("final_station", {})
+	var board := Rect2()
+	var sections: Array = []
 	if not f.is_empty():
-		_add_region(f["x"], f["y"], f["w"], f["h"], f["color"], "4 Delivery")
+		board = Rect2(_to_world(f["x"], f["y"]),
+			Vector2(f["w"], f["h"]) * WORLD_SCALE)
+		sections = f.get("sections", [])
+		_add_board(board, str(f["color"]), sections)
 
 	var play := table.grow(WALK_MARGIN)
+	if board.size.x > 0.0:
+		play = play.merge(board.grow(WALK_MARGIN))
 	_add_walls(play)
 
-	# Items park along the strip below the table, like a prep counter.
+	# Blocks rest in their type's section on the board, two per section, and
+	# return there when delivered or binned.
 	var tags: Array = config.get("food_tags", [])
 	var types: Dictionary = config.get("tag_types", {})
 	add_child(_items_root)
+	var slots: Dictionary = {}
+	var cols: int = max(sections.size(), 1)
+	var sec_w: float = board.size.x / float(cols)
 	for i in tags.size():
 		var tag := int(tags[i])
+		var kind := str(types.get(str(tag), "?"))
 		var it := BridgeItem.new()
-		it.setup(tag, str(types.get(str(tag), "?")))
-		it.position = Vector2(
-			table.position.x + 30.0 + float(i % 9) * 46.0,
-			table.end.y + 28.0 + floor(float(i) / 9.0) * 44.0)
+		it.setup(tag, kind)
+		if sec_w > 0.0:
+			var col: int = sections.find(kind)
+			if col < 0:
+				col = i % cols
+			var slot: int = int(slots.get(kind, 0))
+			slots[kind] = slot + 1
+			it.position = board.position + Vector2(
+				sec_w * (float(col) + 0.5),
+				board.size.y * (0.30 + 0.34 * float(slot)))
+		else:
+			it.position = Vector2(
+				table.position.x + 30.0 + float(i % 9) * 46.0,
+				table.end.y + 28.0 + floor(float(i) / 9.0) * 44.0)
 		_items_root.add_child(it)
 		_home[it] = it.position
 
@@ -201,6 +225,45 @@ func _add_region(x: float, y: float, w: float, h: float,
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(label)
 
+
+func _add_board(rect: Rect2, color_hex: String, sections: Array) -> void:
+	var holder := Node2D.new()
+	holder.position = rect.position
+	add_child(holder)
+
+	var base := ColorRect.new()
+	base.size = rect.size
+	var c := Color(color_hex)
+	c.a = 0.30
+	base.color = c
+	base.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(base)
+
+	var title := Label.new()
+	title.position = Vector2(6, 4)
+	title.text = "4 Delivery"
+	title.add_theme_font_size_override("font_size", 13)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(title)
+
+	var n := sections.size()
+	if n == 0:
+		return
+	var sec_w := rect.size.x / float(n)
+	for i in n:
+		if i > 0:
+			var divider := ColorRect.new()
+			divider.size = Vector2(2.0, rect.size.y)
+			divider.position = Vector2(sec_w * float(i) - 1.0, 0.0)
+			divider.color = Color(1.0, 1.0, 1.0, 0.35)
+			divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			holder.add_child(divider)
+		var section_name := Label.new()
+		section_name.text = str(sections[i])
+		section_name.position = Vector2(sec_w * float(i) + 6.0, rect.size.y - 22.0)
+		section_name.add_theme_font_size_override("font_size", 11)
+		section_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		holder.add_child(section_name)
 
 # ---------------- round lifecycle ----------------
 
