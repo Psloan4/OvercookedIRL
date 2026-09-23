@@ -51,12 +51,27 @@ would otherwise overlap them and let one body attend all three.
 `FINAL_STATION_DEF`'s rect had the same problem -- it is a crop in the *delivery*
 camera's frame, not table space. So the board's real size lives in
 `FINAL_STATION_CM` (2.5ft x 1ft, five sections of two blocks) and
-`FINAL_STATION_TABLE_RECT` derives its place in table space from that. The
-bridge engine and Godot use the derived rect; the live game still uses the crop.
+`FINAL_STATION_TABLE_RECT` derives its place in table space from that: stood on
+its long edge off the table's left edge, alongside the Cooking station, as the
+live game's UI lays it out. The bridge engine and Godot use the derived rect;
+the live game still uses the crop.
+
+Bodies are sized off the Cooking station (`BODY_FRACTION`, a third of its short
+side) and `WALK_MARGIN` sets the lane around the table. Both grow the arena past
+the window, so `bridge_map.gd` zooms the camera to fit and undoes that zoom on
+the HUD.
 
 The four station rects exactly tile `TABLE_REGION`, and each one touches a
 different outer edge (Cooking left, Slicing top, Assembling bottom, Plating
 right), so a solid table with bodies walking around it reaches everything.
 
-Item sprites aren't wired: `ASSET_MAP` names files under `GameFramework/assets/`,
-outside `res://`. Items draw as colour-coded rects with a state label for now.
+Item art is the live game's own PNGs. `ASSET_MAP` names files under
+`GameFramework/assets/`, outside `res://`, so importing them into the Godot
+project would mean a second copy that drifts. Instead `client_config()` sends
+`assets_dir` as an absolute path and `bridge_item.gd` loads each file at
+runtime, cached per path. A state with no entry in `ASSET_MAP` falls back to the
+colour-coded rect.
+
+Under each item is the live game's scan bar -- same colours as
+`QProgressBar#ScanBar` in `style.py`, and a burn drains it instead of filling
+it.

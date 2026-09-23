@@ -13,8 +13,13 @@ const WORLD_SCALE := 1.0
 const ORIGIN := Vector2(130, 30)
 
 # Walking room around the table, and the wall thickness that pens it in.
-const WALK_MARGIN := 110.0
+const WALK_MARGIN := 180.0
 const WALL := 40.0
+
+# Body size: a third of the Cooking station's short side, then tripled in area.
+const BODY_FRACTION := 1.0 / 3.0
+const BODY_AREA_SCALE := 3.0
+const FALLBACK_RADIUS := 16.0
 
 # How close a body must be to a gated station's rect to attend it. A body
 # attends at most ONE station -- the nearest -- because the gated rects sit
@@ -32,6 +37,8 @@ var _players: Array[BridgePlayer] = []
 var _gated: Dictionary = {}              # zone key -> Rect2 (world coords)
 var _stage_colors: Dictionary = {}
 var _home: Dictionary = {}               # node -> start position
+var _play := Rect2()
+var _view_size := Vector2.ZERO
 var _now := 0.0
 var _game_seconds := 150.0
 var _round: int = Round.IDLE
@@ -81,6 +88,7 @@ func _on_config(config: Dictionary) -> void:
 		Vector2(float(t[2]), float(t[3])) * WORLD_SCALE)
 
 	_add_table(table)
+	var body_radius := FALLBACK_RADIUS
 	for s in config.get("stations", []):
 		_add_region(s["x"], s["y"], s["w"], s["h"], s["color"],
 			"%s %s" % [s["stype"], s["name"]])
@@ -88,6 +96,10 @@ func _on_config(config: Dictionary) -> void:
 		if zone != null:
 			_gated[zone] = Rect2(_to_world(s["x"], s["y"]),
 				Vector2(s["w"], s["h"]) * WORLD_SCALE)
+		if str(s["name"]) == "Cooking":
+			var short_side: float = min(float(s["w"]), float(s["h"]))
+			var third: float = short_side * WORLD_SCALE * BODY_FRACTION
+			body_radius = third * 0.5 * sqrt(BODY_AREA_SCALE)
 
 	# The delivery board is a real object, so config.py hands it over already
 	# sized and placed in table space -- not the camera crop the live game uses.
@@ -105,28 +117,31 @@ func _on_config(config: Dictionary) -> void:
 		play = play.merge(board.grow(WALK_MARGIN))
 	_add_walls(play)
 
-	# Blocks rest in their type's section on the board, two per section, and
-	# return there when delivered or binned.
+	# Blocks rest in their type's section on the board, two side by side per
+	# section, and return there when delivered or binned.
 	var tags: Array = config.get("food_tags", [])
 	var types: Dictionary = config.get("tag_types", {})
+	# The live game's art, by item type, loaded from its own folder.
+	var assets: Dictionary = config.get("assets", {})
+	var assets_dir := str(config.get("assets_dir", ""))
 	add_child(_items_root)
 	var slots: Dictionary = {}
-	var cols: int = max(sections.size(), 1)
-	var sec_w: float = board.size.x / float(cols)
+	var rows: int = max(sections.size(), 1)
+	var sec_h: float = board.size.y / float(rows)
 	for i in tags.size():
 		var tag := int(tags[i])
 		var kind := str(types.get(str(tag), "?"))
 		var it := BridgeItem.new()
-		it.setup(tag, kind)
-		if sec_w > 0.0:
-			var col: int = sections.find(kind)
-			if col < 0:
-				col = i % cols
+		it.setup(tag, kind, assets.get(kind, {}), assets_dir)
+		if sec_h > 0.0:
+			var row: int = sections.find(kind)
+			if row < 0:
+				row = i % rows
 			var slot: int = int(slots.get(kind, 0))
 			slots[kind] = slot + 1
 			it.position = board.position + Vector2(
-				sec_w * (float(col) + 0.5),
-				board.size.y * (0.30 + 0.34 * float(slot)))
+				board.size.x * (0.30 + 0.40 * float(slot)),
+				sec_h * (float(row) + 0.5))
 		else:
 			it.position = Vector2(
 				table.position.x + 30.0 + float(i % 9) * 46.0,
@@ -134,25 +149,55 @@ func _on_config(config: Dictionary) -> void:
 		_items_root.add_child(it)
 		_home[it] = it.position
 
+	# Bodies start in the lanes above and below the table -- the board now owns
+	# the left lane, so spawning there would drop them on top of it.
 	_players.append(_spawn_player("p1",
-		Vector2(table.position.x - WALK_MARGIN * 0.5, table.position.y + 60.0),
-		Color(0.2, 0.6, 1.0)))
+		Vector2(table.position.x + table.size.x * 0.25,
+			table.position.y - WALK_MARGIN * 0.5),
+		Color(0.2, 0.6, 1.0), body_radius))
 	_players.append(_spawn_player("p2",
-		Vector2(table.end.x + WALK_MARGIN * 0.5, table.end.y - 60.0),
-		Color(1.0, 0.45, 0.2)))
+		Vector2(table.position.x + table.size.x * 0.75,
+			table.end.y + WALK_MARGIN * 0.5),
+		Color(1.0, 0.45, 0.2), body_radius))
 
 	add_child(_hud)
 	add_child(_banner)
-	_banner.size = Vector2(play.size.x, 40)
-	_banner.position = Vector2(play.position.x, play.get_center().y - 20)
-
-	var cam := get_node_or_null("Camera2D") as Camera2D
-	if cam != null:
-		cam.position = play.get_center()
+	_play = play
+	_fit_view()
 
 	_enter_idle()
 	print("bridge: built table %s, %d stations, %d items" % [
 		str(table), config.get("stations", []).size(), tags.size()])
+
+
+# Scale the arena to whatever the window is now -- in or out -- and undo that
+# zoom on the labels so text keeps its authored size. Re-run on every resize.
+func _fit_view() -> void:
+	if _play.size.x <= 0.0:
+		return
+	var frame := _play.grow(WALL)
+	var view := get_viewport_rect().size
+	if view.x <= 0.0 or view.y <= 0.0:
+		return
+	_view_size = view
+	var fit: float = min(view.x / frame.size.x, view.y / frame.size.y)
+	print("bridge: fit view=%v frame=%v play=%v zoom=%.3f" % [
+		view, frame.size, _play.size, fit])
+
+	var cam := get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		push_warning("bridge: no Camera2D -- view not framed")
+		return
+	cam.position = _play.get_center()
+	cam.zoom = Vector2.ONE * fit
+	print("bridge: camera current=%s zoom=%v pos=%v" % [
+		str(cam.is_current()), cam.zoom, cam.position])
+
+	_hud.position = frame.position + Vector2(12, 8)
+	_hud.scale = Vector2.ONE / fit
+	_banner.size = Vector2(_play.size.x * fit, 40)
+	_banner.position = Vector2(_play.position.x, _play.get_center().y - 20.0 / fit)
+	_banner.scale = Vector2.ONE / fit
 
 
 func _add_table(rect: Rect2) -> void:
@@ -196,10 +241,11 @@ func _add_walls(play: Rect2) -> void:
 		body.add_child(shape)
 
 
-func _spawn_player(prefix: String, at: Vector2, tint: Color) -> BridgePlayer:
+func _spawn_player(prefix: String, at: Vector2, tint: Color,
+		body_radius: float) -> BridgePlayer:
 	var p := BridgePlayer.new()
 	add_child(p)
-	p.setup(prefix, at, tint, _items_root)
+	p.setup(prefix, at, tint, _items_root, body_radius)
 	_home[p] = at
 	return p
 
@@ -239,8 +285,9 @@ func _add_board(rect: Rect2, color_hex: String, sections: Array) -> void:
 	base.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(base)
 
+	# The board is narrow and tall, so the title sits above it.
 	var title := Label.new()
-	title.position = Vector2(6, 4)
+	title.position = Vector2(0, -24)
 	title.text = "4 Delivery"
 	title.add_theme_font_size_override("font_size", 13)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -249,18 +296,18 @@ func _add_board(rect: Rect2, color_hex: String, sections: Array) -> void:
 	var n := sections.size()
 	if n == 0:
 		return
-	var sec_w := rect.size.x / float(n)
+	var sec_h := rect.size.y / float(n)
 	for i in n:
 		if i > 0:
 			var divider := ColorRect.new()
-			divider.size = Vector2(2.0, rect.size.y)
-			divider.position = Vector2(sec_w * float(i) - 1.0, 0.0)
+			divider.size = Vector2(rect.size.x, 2.0)
+			divider.position = Vector2(0.0, sec_h * float(i) - 1.0)
 			divider.color = Color(1.0, 1.0, 1.0, 0.35)
 			divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			holder.add_child(divider)
 		var section_name := Label.new()
 		section_name.text = str(sections[i])
-		section_name.position = Vector2(sec_w * float(i) + 6.0, rect.size.y - 22.0)
+		section_name.position = Vector2(6.0, sec_h * float(i) + 3.0)
 		section_name.add_theme_font_size_override("font_size", 11)
 		section_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		holder.add_child(section_name)
@@ -307,7 +354,13 @@ func _set_players_active(on: bool) -> void:
 # ---------------- tick ----------------
 
 func _physics_process(delta: float) -> void:
-	if not _built or not client.connected:
+	if not _built:
+		return
+	# The window is usually still settling when the config lands, so refit off
+	# the size actually in force rather than trusting one early reading.
+	if get_viewport_rect().size != _view_size:
+		_fit_view()
+	if not client.connected:
 		return
 
 	if _round != Round.RUNNING:
@@ -349,6 +402,9 @@ func _physics_process(delta: float) -> void:
 func _on_state(state: Dictionary) -> void:
 	var items: Dictionary = state.get("items", {})
 	var scans: Dictionary = state.get("scans", {})
+	var burning: Dictionary = state.get("burning", {})
+	var combining: Dictionary = state.get("combining", {})
+	var delivery: Dictionary = state.get("delivery_scans", {})
 
 	for child in _items_root.get_children():
 		var it := child as BridgeItem
@@ -358,11 +414,17 @@ func _on_state(state: Dictionary) -> void:
 		if not items.has(key):
 			continue
 		var new_state := str(items[key]["state"])
-		var tint := _tint_for(new_state)
-		# Brighten while a scan is running, so progress is visible.
+		it.apply(new_state, _tint_for(new_state))
+		# A station scan, or the hold over the delivery board -- the bar
+		# carries progress now, so the stage colour stays true.
 		if scans.has(key):
-			tint = tint.lerp(Color.WHITE, float(scans[key]) * 0.6)
-		it.apply(new_state, tint)
+			it.set_progress(float(scans[key]), true,
+				bool(burning.get(key, false)),
+				bool(combining.get(key, false)))
+		elif delivery.has(key):
+			it.set_progress(float(delivery[key]), true)
+		else:
+			it.set_progress(0.0, false)
 
 	_final_score = int(state.get("points", 0))
 	if _round != Round.RUNNING:

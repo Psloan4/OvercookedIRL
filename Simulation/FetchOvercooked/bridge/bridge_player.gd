@@ -8,42 +8,53 @@ extends CharacterBody2D
 ## The table is solid, so a body walks around it and reaches across the edge --
 ## drop_distance is what makes an item land on the far side of that edge.
 
-const RADIUS := 16.0
+const DEFAULT_RADIUS := 16.0
+
+# Clearance past the body edge, so reach and drop scale with body size.
+const DROP_CLEARANCE := 28.0
+const REACH_CLEARANCE := 48.0
 
 @export var player_name: String = "p1"
-@export var move_speed := 210.0
+@export var move_speed := 630.0
 @export var turn_speed := 3.5
-@export var drop_distance := 44.0
-@export var reach := 64.0
+@export var radius := DEFAULT_RADIUS
+@export var drop_distance := DEFAULT_RADIUS + DROP_CLEARANCE
+@export var reach := DEFAULT_RADIUS + REACH_CLEARANCE
 
 var active := false
 var carrying: BridgeItem = null
 var items_root: Node2D = null
 
 
-func setup(input_prefix: String, at: Vector2, tint: Color, items: Node2D) -> void:
+func setup(input_prefix: String, at: Vector2, tint: Color, items: Node2D,
+		body_radius: float = DEFAULT_RADIUS) -> void:
 	player_name = input_prefix
 	position = at
 	items_root = items
 	name = "Player_" + input_prefix
+	radius = body_radius
+	drop_distance = radius + DROP_CLEARANCE
+	reach = radius + REACH_CLEARANCE
 
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
-	circle.radius = RADIUS
+	circle.radius = radius
 	shape.shape = circle
 	add_child(shape)
 
 	var body := ColorRect.new()
-	body.size = Vector2(RADIUS * 2.0, RADIUS * 2.0)
-	body.position = Vector2(-RADIUS, -RADIUS)
+	body.size = Vector2(radius * 2.0, radius * 2.0)
+	body.position = Vector2(-radius, -radius)
 	body.color = tint
 	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(body)
 
 	# Nose, so the facing direction is visible.
+	var nose_len := radius * 0.9
+	var nose_w := radius * 0.3
 	var nose := ColorRect.new()
-	nose.size = Vector2(5, 14)
-	nose.position = Vector2(-2.5, -RADIUS - 12.0)
+	nose.size = Vector2(nose_w, nose_len)
+	nose.position = Vector2(-nose_w * 0.5, -radius - nose_len * 0.85)
 	nose.color = Color.WHITE
 	nose.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(nose)

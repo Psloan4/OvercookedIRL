@@ -218,22 +218,29 @@ TABLE_CM = (117, 62)
 TABLE_REGION = (7, 110, 604, 322)
 
 # --- Delivery board ---------------------------------------------------------
-# The board is 2.5ft x 1ft, split into five equal sections, two blocks resting
-# in each. FINAL_STATION_DEF's rect is a crop in the DELIVERY camera's frame,
-# so it says nothing about where the board is or how big; these do.
-FINAL_STATION_CM = (76.2, 30.5)
+# The board is 2.5ft x 1ft stood on its long edge, split into five equal
+# sections stacked top to bottom, two blocks resting side by side in each.
+# FINAL_STATION_DEF's rect is a crop in the DELIVERY camera's frame, so it says
+# nothing about where the board is or how big; these do.
+FINAL_STATION_CM = (30.5, 76.2)
 FINAL_STATION_SECTIONS = ("BURGER", "PIZZA", "CHEESE", "CONE", "FRIES")
-FINAL_STATION_GAP_CM = 5.0   # clearance between table edge and board
 
-# The board in TABLE space, derived from its real size: centred below the
-# table. Simulators place and test against this; the live game reads the
-# delivery camera and uses FINAL_STATION_DEF's crop instead.
 _PX_PER_CM = (TABLE_REGION[2] / TABLE_CM[0], TABLE_REGION[3] / TABLE_CM[1])
+
+# Clearance between table edge and board: a lane to stand and walk in, as wide
+# as the Plating station.
+_PLATING_W = next(d["w"] for d in STATION_DEFS if d["name"] == "Plating")
+FINAL_STATION_GAP_CM = _PLATING_W / _PX_PER_CM[0]
+
+# The board in TABLE space, derived from its real size: off the table's left
+# edge, alongside the Cooking station, as it sits in the real game. Simulators
+# place and test against this; the live game reads the delivery camera and uses
+# FINAL_STATION_DEF's crop instead.
 _BOARD_W = FINAL_STATION_CM[0] * _PX_PER_CM[0]
 _BOARD_H = FINAL_STATION_CM[1] * _PX_PER_CM[1]
 FINAL_STATION_TABLE_RECT = (
-    TABLE_REGION[0] + TABLE_REGION[2] / 2 - _BOARD_W / 2,
-    TABLE_REGION[1] + TABLE_REGION[3] + FINAL_STATION_GAP_CM * _PX_PER_CM[1],
+    TABLE_REGION[0] - FINAL_STATION_GAP_CM * _PX_PER_CM[0] - _BOARD_W,
+    TABLE_REGION[1] + TABLE_REGION[3] / 2 - _BOARD_H / 2,
     _BOARD_W,
     _BOARD_H,
 )

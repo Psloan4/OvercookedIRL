@@ -13,6 +13,8 @@ rects, so STATION_DEFS is the single source of truth for geometry too.
 
 from __future__ import annotations
 
+import os
+
 from config import (
     STATION_DEFS,
     FINAL_STATION_DEF,
@@ -34,6 +36,13 @@ from final_station import FinalStation
 from item import ItemHandler
 from order import OrderHandler
 from station import Station
+
+# ASSET_MAP's filenames live here. Sent as an absolute path because Godot's
+# res:// can't reach outside its own project -- the client loads them at
+# runtime instead of importing them, so there is only ever one copy.
+ASSETS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets"
+).replace("\\", "/")
 
 # Tags that are real food. Player head tags and the camera's phantom tag 17
 # never become items.
@@ -107,6 +116,7 @@ def client_config() -> dict:
         "station_colors": dict(STATION_COLORS),
         "stage_colors": dict(STAGE_COLORS),
         "assets": {k: dict(v) for k, v in ASSET_MAP.items()},
+        "assets_dir": ASSETS_DIR,
         "food_tags": list(FOOD_TAGS),
         "tag_types": {str(t): IDS[t] for t in FOOD_TAGS},
     }
@@ -152,7 +162,7 @@ class Engine:
         self.now = float(now)
         tags = [(int(t), float(x), float(y)) for t, x, y in tags]
 
-        statuses, scans, burning, combine_ready = {}, {}, {}, set()
+        statuses, scans, burning, combining, combine_ready = {}, {}, {}, {}, set()
         for st in self.stations:
             ids = [t for (t, x, y) in tags if st.contains(x, y)]
             present = players.get(st.player_zone, True)
@@ -160,6 +170,7 @@ class Engine:
             statuses[self._stype[id(st)]] = status
             scans.update(status.get("scans", {}))
             burning.update(status.get("burning", {}))
+            combining.update(status.get("combining", {}))
             combine_ready.update(status.get("combine_ready", {}))
 
         final_status = self.final.process(tags)
@@ -178,6 +189,7 @@ class Engine:
             },
             "scans": {str(t): p for t, p in scans.items()},
             "burning": {str(t): b for t, b in burning.items() if b},
+            "combining": {str(t): c for t, c in combining.items() if c},
             "combine_ready": [str(t) for t in combine_ready],
             "stations": {
                 k: {
