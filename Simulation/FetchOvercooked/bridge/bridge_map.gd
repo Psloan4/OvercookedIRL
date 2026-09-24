@@ -405,6 +405,7 @@ func _on_state(state: Dictionary) -> void:
 	var burning: Dictionary = state.get("burning", {})
 	var combining: Dictionary = state.get("combining", {})
 	var delivery: Dictionary = state.get("delivery_scans", {})
+	var ready: Array = state.get("combine_ready", [])
 
 	for child in _items_root.get_children():
 		var it := child as BridgeItem
@@ -415,6 +416,9 @@ func _on_state(state: Dictionary) -> void:
 			continue
 		var new_state := str(items[key]["state"])
 		it.apply(new_state, _tint_for(new_state))
+		# Ring = the station this item goes to next, or a green pulse once it
+		# is ready to combine.
+		it.set_ring(_ring_for(new_state), ready.has(key))
 		# A station scan, or the hold over the delivery board -- the bar
 		# carries progress now, so the stage colour stays true.
 		if scans.has(key):
@@ -440,6 +444,12 @@ func _dist_to_rect(p: Vector2, r: Rect2) -> float:
 	var cx: float = clamp(p.x, r.position.x, r.end.x)
 	var cy: float = clamp(p.y, r.position.y, r.end.y)
 	return p.distance_to(Vector2(cx, cy))
+
+
+# The raw STAGE_COLORS entry, keeping the "green_yellow" sentinel intact --
+# the ring draws that as a split, where the flat tint can't.
+func _ring_for(state_name: String) -> String:
+	return str(_stage_colors.get(state_name, ""))
 
 
 func _tint_for(state_name: String) -> Color:

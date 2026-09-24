@@ -12,11 +12,15 @@ extends Node2D
 ## States with no picture fall back to the colour-coded rect.
 ##
 ## The scan bar under the item mirrors the live game's: same colours, same
-## geometry, and a burn drains full -> empty instead of filling.
+## geometry, and a burn drains full -> empty instead of filling. The
+## destination ring over it does too -- see bridge_ring.gd.
 
 const SIZE := Vector2(34, 34)
 const BAR_H := 8.0
 const BAR_GAP := 3.0
+
+# Same inset the live game uses: half the ring's pen width, plus one.
+const RING_INSET := 3.0
 
 # Matched to QProgressBar#ScanBar in style.py.
 const BAR_TRACK := Color(0, 0, 0, 0.18)
@@ -38,6 +42,7 @@ var _dir: String = ""
 
 var _rect: ColorRect
 var _sprite: Sprite2D
+var _ring: BridgeRing
 var _label: Label
 var _bar: Panel
 var _fill: Panel
@@ -76,6 +81,11 @@ func setup(tag_id: int, item_kind: String,
 	_sprite = Sprite2D.new()
 	_sprite.visible = false
 	add_child(_sprite)
+
+	# Added after the art so it paints on top of it, as the live game does.
+	_ring = BridgeRing.new()
+	_ring.radius = SIZE.x * 0.5 - RING_INSET
+	add_child(_ring)
 
 	_bar = Panel.new()
 	_bar.size = Vector2(SIZE.x, BAR_H)
@@ -129,6 +139,10 @@ func apply(new_state: String, tint: Color) -> void:
 	var longest: float = maxf(px.x, px.y)
 	if longest > 0.0:
 		_sprite.scale = Vector2.ONE * (SIZE.x / longest)
+
+
+func set_ring(color_hex: String, is_ready: bool) -> void:
+	_ring.set_ring(color_hex, is_ready)
 
 
 func set_progress(progress: float, scanning: bool,

@@ -10,16 +10,26 @@ extends CharacterBody2D
 
 const DEFAULT_RADIUS := 16.0
 
-# Clearance past the body edge, so reach and drop scale with body size.
+# Clearance past the body edge, so the drop scales with body size.
 const DROP_CLEARANCE := 28.0
-const REACH_CLEARANCE := 48.0
+
+# Nose geometry, shared by the drawing and the grab point so the two can't
+# drift apart. Fractions of radius.
+const NOSE_LEN := 0.9
+const NOSE_WIDTH := 0.3
+const NOSE_INSET := 0.85
+
+# Catch radius around the arm tip. Fixed rather than scaled by body size,
+# because it is sized against BridgeItem.SIZE, which doesn't scale either.
+const GRAB_RADIUS := 22.0
 
 @export var player_name: String = "p1"
 @export var move_speed := 630.0
 @export var turn_speed := 3.5
 @export var radius := DEFAULT_RADIUS
 @export var drop_distance := DEFAULT_RADIUS + DROP_CLEARANCE
-@export var reach := DEFAULT_RADIUS + REACH_CLEARANCE
+@export var arm_length := DEFAULT_RADIUS * (1.0 + NOSE_LEN * NOSE_INSET)
+@export var grab_radius := GRAB_RADIUS
 
 var active := false
 var carrying: BridgeItem = null
@@ -34,7 +44,7 @@ func setup(input_prefix: String, at: Vector2, tint: Color, items: Node2D,
 	name = "Player_" + input_prefix
 	radius = body_radius
 	drop_distance = radius + DROP_CLEARANCE
-	reach = radius + REACH_CLEARANCE
+	arm_length = radius * (1.0 + NOSE_LEN * NOSE_INSET)
 
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
@@ -49,12 +59,12 @@ func setup(input_prefix: String, at: Vector2, tint: Color, items: Node2D,
 	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(body)
 
-	# Nose, so the facing direction is visible.
-	var nose_len := radius * 0.9
-	var nose_w := radius * 0.3
+	# Nose, so the facing direction is visible. Its tip is the grab point.
+	var nose_len := radius * NOSE_LEN
+	var nose_w := radius * NOSE_WIDTH
 	var nose := ColorRect.new()
 	nose.size = Vector2(nose_w, nose_len)
-	nose.position = Vector2(-nose_w * 0.5, -radius - nose_len * 0.85)
+	nose.position = Vector2(-nose_w * 0.5, -radius - nose_len * NOSE_INSET)
 	nose.color = Color.WHITE
 	nose.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(nose)
@@ -84,16 +94,22 @@ func _physics_process(delta: float) -> void:
 			+ (drop_distance * Vector2.UP).rotated(rotation)
 
 
+# Tip of the white arm, in world space.
+func grab_point() -> Vector2:
+	return global_position + (arm_length * Vector2.UP).rotated(rotation)
+
+
 func _pick_up_nearest() -> void:
 	if items_root == null:
 		return
+	var tip := grab_point()
 	var best: BridgeItem = null
-	var best_d := reach * reach
+	var best_d := grab_radius * grab_radius
 	for child in items_root.get_children():
 		var it := child as BridgeItem
 		if it == null or it.held_by != null:
 			continue
-		var d := global_position.distance_squared_to(it.global_position)
+		var d := tip.distance_squared_to(it.global_position)
 		if d < best_d:
 			best_d = d
 			best = it
