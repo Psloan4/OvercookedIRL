@@ -29,6 +29,8 @@ from config import (
     TABLE_REGION,
     TABLE_CM,
     ASSET_MAP,
+    COMPLETE_STATE_ITEM_TYPE,
+    COMPLETE_STATES,
     IDS,
 )
 from actions import NAME_TO_STYPE
@@ -47,6 +49,24 @@ ASSETS_DIR = os.path.join(
 # Tags that are real food. Player head tags and the camera's phantom tag 17
 # never become items.
 FOOD_TAGS = tuple(t for t, kind in IDS.items() if kind not in ("PLAYER", "THE GHOST"))
+
+
+def order_icons() -> dict:
+    """Order type -> the picture its ticket shows, as the live game picks it.
+
+    Same rule as OrderTicket in ui_components.py: generic "ice_cream" orders
+    have no art of their own, so they show vanilla (any flavour completes it).
+    """
+    icons = {}
+    for order_type in COMPLETE_STATES:
+        if order_type == "ice_cream":
+            item_type, state = "CONE", "vanilla"
+        else:
+            item_type, state = COMPLETE_STATE_ITEM_TYPE.get(order_type), order_type
+        name = ASSET_MAP.get(item_type, {}).get(state)
+        if name:
+            icons[order_type] = name
+    return icons
 
 
 def bridge_final_def() -> dict:
@@ -117,6 +137,7 @@ def client_config() -> dict:
         "stage_colors": dict(STAGE_COLORS),
         "assets": {k: dict(v) for k, v in ASSET_MAP.items()},
         "assets_dir": ASSETS_DIR,
+        "order_icons": order_icons(),
         "food_tags": list(FOOD_TAGS),
         "tag_types": {str(t): IDS[t] for t in FOOD_TAGS},
     }

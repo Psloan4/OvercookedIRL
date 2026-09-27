@@ -21,7 +21,7 @@ const NOSE_INSET := 0.85
 
 # Catch radius around the arm tip. Fixed rather than scaled by body size,
 # because it is sized against BridgeItem.SIZE, which doesn't scale either.
-const GRAB_RADIUS := 22.0
+const GRAB_RADIUS := BridgeItem.SIZE.x * 0.5 + 5.0
 
 @export var player_name: String = "p1"
 @export var move_speed := 630.0

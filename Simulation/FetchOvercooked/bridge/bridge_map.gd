@@ -15,6 +15,7 @@ const ORIGIN := Vector2(130, 30)
 # Walking room around the table, and the wall thickness that pens it in.
 const WALK_MARGIN := 180.0
 const WALL := 40.0
+const WALL_COLOR := Color(0.16, 0.18, 0.22)
 
 # Body size: a third of the Cooking station's short side, then tripled in area.
 const BODY_FRACTION := 1.0 / 3.0
@@ -45,7 +46,7 @@ var _round: int = Round.IDLE
 var _built := false
 var _final_score := 0
 
-var _hud: Label
+var _hud: BridgeHud
 var _banner: Label
 
 
@@ -59,10 +60,7 @@ func _ready() -> void:
 	_items_root = Node2D.new()
 	_items_root.name = "Items"
 
-	_hud = Label.new()
-	_hud.position = Vector2(12, 8)
-	_hud.add_theme_font_size_override("font_size", 18)
-	_hud.text = "connecting to rules engine..."
+	_hud = BridgeHud.new()
 
 	_banner = Label.new()
 	_banner.add_theme_font_size_override("font_size", 26)
@@ -124,6 +122,7 @@ func _on_config(config: Dictionary) -> void:
 	# The live game's art, by item type, loaded from its own folder.
 	var assets: Dictionary = config.get("assets", {})
 	var assets_dir := str(config.get("assets_dir", ""))
+	_hud.set_icons(config.get("order_icons", {}), assets_dir)
 	add_child(_items_root)
 	var slots: Dictionary = {}
 	var rows: int = max(sections.size(), 1)
@@ -170,17 +169,19 @@ func _on_config(config: Dictionary) -> void:
 		str(table), config.get("stations", []).size(), tags.size()])
 
 
-# Scale the arena to whatever the window is now -- in or out -- and undo that
-# zoom on the labels so text keeps its authored size. Re-run on every resize.
+# Scale the arena to whatever the window is now -- in or out -- below the HUD
+# bar, and undo that zoom on the banner so text keeps its authored size. Re-run
+# on every resize.
 func _fit_view() -> void:
 	if _play.size.x <= 0.0:
 		return
 	var frame := _play.grow(WALL)
 	var view := get_viewport_rect().size
-	if view.x <= 0.0 or view.y <= 0.0:
+	var room := view - Vector2(0.0, BridgeHud.HEIGHT)
+	if room.x <= 0.0 or room.y <= 0.0:
 		return
 	_view_size = view
-	var fit: float = min(view.x / frame.size.x, view.y / frame.size.y)
+	var fit: float = min(room.x / frame.size.x, room.y / frame.size.y)
 	print("bridge: fit view=%v frame=%v play=%v zoom=%.3f" % [
 		view, frame.size, _play.size, fit])
 
@@ -188,13 +189,15 @@ func _fit_view() -> void:
 	if cam == null:
 		push_warning("bridge: no Camera2D -- view not framed")
 		return
-	cam.position = _play.get_center()
+	# Shift up by half the bar so the arena centres in the room below it.
+	cam.position = _play.get_center() - Vector2(0.0, BridgeHud.HEIGHT * 0.5 / fit)
 	cam.zoom = Vector2.ONE * fit
+	# The HUD bar spans exactly the walkable width, lane edge to lane edge.
+	var left: float = (_play.position.x - cam.position.x) * fit + view.x * 0.5
+	_hud.set_span(left, _play.size.x * fit)
 	print("bridge: camera current=%s zoom=%v pos=%v" % [
 		str(cam.is_current()), cam.zoom, cam.position])
 
-	_hud.position = frame.position + Vector2(12, 8)
-	_hud.scale = Vector2.ONE / fit
 	_banner.size = Vector2(_play.size.x * fit, 40)
 	_banner.position = Vector2(_play.position.x, _play.get_center().y - 20.0 / fit)
 	_banner.scale = Vector2.ONE / fit
@@ -239,6 +242,13 @@ func _add_walls(play: Rect2) -> void:
 		shape.shape = box
 		shape.position = r.get_center()
 		body.add_child(shape)
+
+		var face := ColorRect.new()
+		face.position = r.position
+		face.size = r.size
+		face.color = WALL_COLOR
+		face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		body.add_child(face)
 
 
 func _spawn_player(prefix: String, at: Vector2, tint: Color,
@@ -320,7 +330,9 @@ func _enter_idle() -> void:
 	_set_players_active(false)
 	_banner.text = "Press Enter to start"
 	_banner.visible = true
-	_hud.text = "Score 0   %ds" % int(_game_seconds)
+	_hud.set_points(0)
+	_hud.set_time_left(_game_seconds)
+	_hud.set_orders([])
 
 
 func _begin_round() -> void:
@@ -341,6 +353,7 @@ func _begin_round() -> void:
 func _end_round() -> void:
 	_round = Round.ENDED
 	_set_players_active(false)
+	_hud.set_time_left(0.0)
 	_banner.text = "Time! Final score %d\nPress Enter to play again" % _final_score
 	_banner.visible = true
 	print("bridge: round over, score %d" % _final_score)
@@ -433,11 +446,9 @@ func _on_state(state: Dictionary) -> void:
 	_final_score = int(state.get("points", 0))
 	if _round != Round.RUNNING:
 		return
-	var open: Array = []
-	for o in state.get("orders", []):
-		open.append(str(o["type"]).replace("complete_", ""))
-	_hud.text = "Score %d   %ds left   orders: %s" % [
-		_final_score, int(max(0.0, _game_seconds - _now)), ", ".join(open)]
+	_hud.set_points(_final_score)
+	_hud.set_time_left(_game_seconds - _now)
+	_hud.set_orders(state.get("orders", []))
 
 
 func _dist_to_rect(p: Vector2, r: Rect2) -> float:

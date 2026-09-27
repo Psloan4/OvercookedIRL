@@ -15,7 +15,7 @@ extends Node2D
 ## geometry, and a burn drains full -> empty instead of filling. The
 ## destination ring over it does too -- see bridge_ring.gd.
 
-const SIZE := Vector2(34, 34)
+const SIZE := Vector2(46, 46)
 const BAR_H := 8.0
 const BAR_GAP := 3.0
 
