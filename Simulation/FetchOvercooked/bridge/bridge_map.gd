@@ -14,7 +14,7 @@ const ORIGIN := Vector2(130, 30)
 
 # Walking room around the table, and the wall thickness that pens it in.
 const WALK_MARGIN := 180.0
-const WALL := 40.0
+const WALL := 14.0
 const WALL_COLOR := Color(0.16, 0.18, 0.22)
 
 # Body size: a third of the Cooking station's short side, then tripled in area.
@@ -28,6 +28,10 @@ const FALLBACK_RADIUS := 16.0
 # PLAYER_ZONES can't be reused: those rects live in each station's own camera
 # frame, not table space.
 const PRESENCE_REACH := 70.0
+
+# Title bar and borders aren't part of the client size, so leave room for
+# them when sizing the window to the arena.
+const WINDOW_CHROME := 80.0
 
 enum Round { IDLE, RUNNING, ENDED }
 
@@ -44,6 +48,7 @@ var _now := 0.0
 var _game_seconds := 150.0
 var _round: int = Round.IDLE
 var _built := false
+var _sized := false
 var _final_score := 0
 
 var _hud: BridgeHud
@@ -162,6 +167,7 @@ func _on_config(config: Dictionary) -> void:
 	add_child(_hud)
 	add_child(_banner)
 	_play = play
+	_fit_window()
 	_fit_view()
 
 	_enter_idle()
@@ -172,6 +178,28 @@ func _on_config(config: Dictionary) -> void:
 # Scale the arena to whatever the window is now -- in or out -- below the HUD
 # bar, and undo that zoom on the banner so text keeps its authored size. Re-run
 # on every resize.
+# Wrap the window around the arena, once, so the walls meet its edges and the
+# HUD bar sits straight on top of them -- no dead space on any side. _fit_view
+# then finds the same zoom with nothing left over to letterbox.
+func _fit_window() -> void:
+	if _sized or _play.size.x <= 0.0:
+		return
+	_sized = true
+	var frame := _play.grow(WALL)
+	# The project stretches by canvas_items, so the base viewport -- not the
+	# window -- is what the arena is laid out against. Match it to the arena
+	# and there is nothing left over to letterbox.
+	var base := Vector2i(int(round(frame.size.x)),
+		int(round(frame.size.y + BridgeHud.HEIGHT)))
+	get_window().content_scale_size = base
+
+	var usable := Vector2(DisplayServer.screen_get_usable_rect().size)
+	var fit := minf(1.0, minf(usable.x / float(base.x),
+		(usable.y - WINDOW_CHROME) / float(base.y)))
+	DisplayServer.window_set_size(Vector2i(Vector2(base) * fit))
+	print("bridge: viewport %v, window %v" % [base, Vector2(base) * fit])
+
+
 func _fit_view() -> void:
 	if _play.size.x <= 0.0:
 		return
@@ -192,9 +220,8 @@ func _fit_view() -> void:
 	# Shift up by half the bar so the arena centres in the room below it.
 	cam.position = _play.get_center() - Vector2(0.0, BridgeHud.HEIGHT * 0.5 / fit)
 	cam.zoom = Vector2.ONE * fit
-	# The HUD bar spans exactly the walkable width, lane edge to lane edge.
-	var left: float = (_play.position.x - cam.position.x) * fit + view.x * 0.5
-	_hud.set_span(left, _play.size.x * fit)
+	# Full width, so the arena flows straight into the bar with no gap.
+	_hud.set_span(0.0, view.x)
 	print("bridge: camera current=%s zoom=%v pos=%v" % [
 		str(cam.is_current()), cam.zoom, cam.position])
 
