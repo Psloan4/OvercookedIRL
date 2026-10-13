@@ -88,8 +88,11 @@ func send(msg: Dictionary) -> void:
 		_peer.put_data((JSON.stringify(msg) + "\n").to_utf8_buffer())
 
 
-func observe(now: float, tags: Array, players: Dictionary) -> void:
-	send({"type": "observe", "now": now, "tags": tags, "players": players})
+# bodies/inputs are for the game log only; the rules ignore them.
+func observe(now: float, tags: Array, players: Dictionary,
+		bodies: Dictionary = {}, inputs: Dictionary = {}) -> void:
+	send({"type": "observe", "now": now, "tags": tags, "players": players,
+		"bodies": bodies, "inputs": inputs})
 
 
 func reset_round() -> void:

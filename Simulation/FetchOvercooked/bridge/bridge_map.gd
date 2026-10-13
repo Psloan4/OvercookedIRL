@@ -423,6 +423,8 @@ func _physics_process(delta: float) -> void:
 
 	# Nearest gated station within reach, one per body.
 	var players: Dictionary = {}
+	var bodies: Dictionary = {}
+	var inputs: Dictionary = {}
 	for zone in _gated:
 		players[zone] = false
 	for p in _players:
@@ -436,7 +438,17 @@ func _physics_process(delta: float) -> void:
 		if best != "":
 			players[best] = true
 
-	client.observe(_now, tags, players)
+		# For the game log: pose before this frame's move, beside the input
+		# the body is about to act on.
+		var at := (p.global_position - ORIGIN) / WORLD_SCALE
+		bodies[p.player_name] = {
+			"x": at.x, "y": at.y, "rot": p.rotation,
+			"carrying": p.carrying.tag if p.carrying != null else null,
+			"zone": best if best != "" else null,
+		}
+		inputs[p.player_name] = p.read_input()
+
+	client.observe(_now, tags, players, bodies, inputs)
 
 
 func _on_state(state: Dictionary) -> void:

@@ -5,7 +5,7 @@ JSON.parse_string / JSON.stringify for the payload.
 
 Client -> server
   {"type":"hello"}                              ask for the config handshake
-  {"type":"observe","now":12.5,
+  {"type":"observe","now":12.5,                 bodies/inputs optional, logged only
    "tags":[[0,84.0,271.0], ...],                (tag_id, x, y) full-frame px
    "players":{"2a":true,"2b":false,"3":false}}
   {"type":"reset"}                              start a fresh round

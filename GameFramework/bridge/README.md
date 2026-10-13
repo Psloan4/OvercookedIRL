@@ -16,6 +16,20 @@ Enter starts a round and restarts after time is up. P1 drives WASD + grab,
 P2 the arrow keys + its grab (see project.godot). The table is solid: walk
 around it and drop items across the edge onto a station.
 
+## Game logs
+
+Every round is saved to `GameFramework/logs/<time>_seed<N>.jsonl.gz`, one
+JSON line per tick: what Godot sent (`obs`: tags, presence, plus each body's
+pose and the inputs it acted on that frame) and what the engine answered
+(`state`). A header records git commit, rules hash, seed and players.
+
+    python -m bridge.server --p1 alice --p2 bob --note "pairing: human+human"
+    python -m bridge.replay --latest      # re-runs the engine, must match
+
+The seed drives every random draw (orders, item variants), so seed + obs
+rebuild each state exactly; `replay` checks that. `--no-log` turns it off,
+`--seed N` fixes the seed.
+
 ## Test without Godot
 
     python -m bridge.selftest             # rules through the observation interface
@@ -30,6 +44,8 @@ around it and drop items across the edge onto a station.
 | `server.py` | TCP loop |
 | `selftest.py` | scripted burger, no sockets |
 | `fake_godot.py` | stand-in client speaking the real protocol |
+| `logger.py` | per-round gzipped JSONL game logs |
+| `replay.py` | re-runs a log through the engine and checks it matches |
 
 ## The interface
 

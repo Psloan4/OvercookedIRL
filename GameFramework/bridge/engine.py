@@ -14,6 +14,7 @@ rects, so STATION_DEFS is the single source of truth for geometry too.
 from __future__ import annotations
 
 import os
+import random
 
 from config import (
     STATION_DEFS,
@@ -158,9 +159,15 @@ class Engine:
         # feed_relay is None: we only ever call process(), never _tick().
         self.final = FinalStation(None, self.items, self.orders, bridge_final_def())
 
-    def start(self):
+    def start(self, seed=None):
         """Begin the round. Items are created lazily, exactly as the camera
-        does when it first sees a tag."""
+        does when it first sees a tag.
+
+        seed: seeds the global `random` that item.py and order.py draw from,
+        so a logged round replays exactly.
+        """
+        if seed is not None:
+            random.seed(seed)
         self.points = 0
         self.now = 0.0
         self.items.clear()

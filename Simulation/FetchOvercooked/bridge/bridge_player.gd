@@ -35,6 +35,9 @@ var active := false
 var carrying: BridgeItem = null
 var items_root: Node2D = null
 
+var _input := {"throttle": 0.0, "turn": 0.0, "grab": false}
+var _input_frame := -1
+
 
 func setup(input_prefix: String, at: Vector2, tint: Color, items: Node2D,
 		body_radius: float = DEFAULT_RADIUS) -> void:
@@ -74,16 +77,15 @@ func _physics_process(delta: float) -> void:
 	if not active:
 		return
 
-	if Input.is_action_just_pressed(player_name + "_grab"):
+	var input := read_input()
+	if input["grab"]:
 		if carrying == null:
 			_pick_up_nearest()
 		else:
 			release()
 
-	var throttle := Input.get_action_strength(player_name + "_up") \
-		- Input.get_action_strength(player_name + "_down")
-	var turn := Input.get_action_strength(player_name + "_right") \
-		- Input.get_action_strength(player_name + "_left")
+	var throttle: float = input["throttle"]
+	var turn: float = input["turn"]
 
 	rotation += turn * turn_speed * delta
 	velocity = Vector2.UP.rotated(rotation) * throttle * move_speed
@@ -92,6 +94,22 @@ func _physics_process(delta: float) -> void:
 	if carrying != null:
 		carrying.global_position = global_position \
 			+ (drop_distance * Vector2.UP).rotated(rotation)
+
+
+# This frame's controls, sampled once so the logged input is exactly what
+# the body acts on, whichever of map or player runs first.
+func read_input() -> Dictionary:
+	var frame := Engine.get_physics_frames()
+	if frame != _input_frame:
+		_input_frame = frame
+		_input = {
+			"throttle": Input.get_action_strength(player_name + "_up")
+				- Input.get_action_strength(player_name + "_down"),
+			"turn": Input.get_action_strength(player_name + "_right")
+				- Input.get_action_strength(player_name + "_left"),
+			"grab": Input.is_action_just_pressed(player_name + "_grab"),
+		}
+	return _input
 
 
 # Tip of the white arm, in world space.
