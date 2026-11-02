@@ -51,6 +51,26 @@ The seed drives every random draw (orders, item variants), so seed + obs
 rebuild each state exactly; `replay` checks that. `--no-log` turns it off,
 `--seed N` fixes the seed.
 
+## Training data
+
+    python -m bridge.dataset              # logs/*.jsonl.gz -> logs/dataset.npz
+    python -m bridge.dataset --every 6 --include-bots -o mix.npz a.jsonl.gz b.jsonl.gz
+
+One example per body per decision, from that body's point of view: `me`, the
+`partner` (zeroed with `partner_present` 0 in a solo round), stations, every
+food item (position, position relative to me, state, who holds it, scan
+progress) and the open orders. So solo and two-player rounds, p1 and p2, go
+into one set and one model can drive either body. `X` holds the features
+(named in `features`), `A` the throttle/turn/grab taken, and `episode`,
+`player`, `tick` point back at the log line.
+
+`--every 6` (the default) keeps 10 decisions a second; a grab anywhere in the
+window counts. Bot-driven bodies are left out unless `--include-bots`; logs
+recorded under different rules are flagged, or dropped with `--strict-rules`.
+
+A learned policy builds its input with `dataset.featurize(obs, state, me)`
+inside `act()`, the same function the dataset used.
+
 ## Test without Godot
 
     python -m bridge.selftest             # rules through the observation interface
@@ -68,6 +88,7 @@ rebuild each state exactly; `replay` checks that. `--no-log` turns it off,
 | `fake_godot.py` | stand-in client speaking the real protocol |
 | `logger.py` | per-round gzipped JSONL game logs |
 | `replay.py` | re-runs a log through the engine and checks it matches |
+| `dataset.py` | logs -> per-player training examples; `featurize()` for bots |
 
 ## The interface
 
