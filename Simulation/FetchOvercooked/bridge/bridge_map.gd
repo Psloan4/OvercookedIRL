@@ -168,6 +168,9 @@ func _on_config(config: Dictionary) -> void:
 			Vector2(table.position.x + table.size.x * 0.75,
 				table.end.y + WALK_MARGIN * 0.5),
 			Color(1.0, 0.45, 0.2), body_radius))
+	var bots: Array = config.get("bots", [])
+	for p in _players:
+		p.bot = p.player_name in bots
 
 	add_child(_hud)
 	add_child(_banner)
@@ -372,6 +375,7 @@ func _begin_round() -> void:
 		(node as Node2D).position = _home[node]
 	for p in _players:
 		p.release()
+		p.clear_command()
 		p.rotation = 0.0
 	_now = 0.0
 	_final_score = 0
@@ -463,6 +467,11 @@ func _on_state(state: Dictionary) -> void:
 	var combining: Dictionary = state.get("combining", {})
 	var delivery: Dictionary = state.get("delivery_scans", {})
 	var ready: Array = state.get("combine_ready", [])
+
+	var commands: Dictionary = state.get("commands", {})
+	for p in _players:
+		if p.bot and commands.has(p.player_name):
+			p.command(commands[p.player_name])
 
 	for child in _items_root.get_children():
 		var it := child as BridgeItem

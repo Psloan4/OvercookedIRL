@@ -22,6 +22,21 @@ at a gated station for its scan to finish.
 
     python -m bridge.server --players 1 --p1 alice --note "solo"
 
+## Bots
+
+`--p1-bot MODULE:CLASS` (or `--p2-bot`) hands that body to a Python policy.
+Each tick the server calls `policy.act(obs, state)` with the same obs/state
+pair a log line stores, and sends the answer back on the state reply as
+`commands`; Godot drives the body from it instead of the keyboard. The
+interface is in `bots.py`, with `Idle` and `Seek` (fetches the nearest item, a
+loop test rather than a cook) as examples. A bot's moves land in the log's
+`inputs` like a human's, and its header entry is `kind: bot` with the policy.
+
+    python -m bridge.server --players 1 --p1-bot bridge.bots:Seek
+    python -m bridge.server --p1 alice --p2-bot mymodels.bc:Policy   # human + bot
+
+Rounds still start on Enter.
+
 ## Game logs
 
 Every round is saved to `GameFramework/logs/<time>_seed<N>.jsonl.gz`, one
@@ -47,7 +62,8 @@ rebuild each state exactly; `replay` checks that. `--no-log` turns it off,
 |---|---|
 | `engine.py` | rules driven by observations instead of cameras; `build_stations()` + `client_config()` |
 | `protocol.py` | wire format, `LineReader` framing |
-| `server.py` | TCP loop |
+| `server.py` | TCP loop; runs bot policies |
+| `bots.py` | policy interface and example bots |
 | `selftest.py` | scripted burger, no sockets |
 | `fake_godot.py` | stand-in client speaking the real protocol |
 | `logger.py` | per-round gzipped JSONL game logs |

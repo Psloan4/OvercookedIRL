@@ -34,9 +34,13 @@ const GRAB_RADIUS := BridgeItem.SIZE.x * 0.5 + 12.0
 var active := false
 var carrying: BridgeItem = null
 var items_root: Node2D = null
+# Driven by the server's bot commands instead of the keyboard.
+var bot := false
 
 var _input := {"throttle": 0.0, "turn": 0.0, "grab": false}
 var _input_frame := -1
+var _command := {"throttle": 0.0, "turn": 0.0}
+var _command_grab := false
 
 
 func setup(input_prefix: String, at: Vector2, tint: Color, items: Node2D,
@@ -102,6 +106,13 @@ func read_input() -> Dictionary:
 	var frame := Engine.get_physics_frames()
 	if frame != _input_frame:
 		_input_frame = frame
+		if bot:
+			# Throttle and turn hold until the next command, like a held key;
+			# grab is a press, spent on the frame that reads it.
+			_input = {"throttle": _command["throttle"], "turn": _command["turn"],
+				"grab": _command_grab}
+			_command_grab = false
+			return _input
 		_input = {
 			"throttle": Input.get_action_strength(player_name + "_up")
 				- Input.get_action_strength(player_name + "_down"),
@@ -110,6 +121,20 @@ func read_input() -> Dictionary:
 			"grab": Input.is_action_just_pressed(player_name + "_grab"),
 		}
 	return _input
+
+
+# Latest bot command. Several can land between physics frames; the last
+# throttle/turn wins, but a grab in any of them is kept so a press isn't lost.
+func command(c: Dictionary) -> void:
+	_command = {"throttle": clampf(float(c.get("throttle", 0.0)), -1.0, 1.0),
+		"turn": clampf(float(c.get("turn", 0.0)), -1.0, 1.0)}
+	_command_grab = _command_grab or bool(c.get("grab", false))
+
+
+# Drop anything left over from the last round.
+func clear_command() -> void:
+	_command = {"throttle": 0.0, "turn": 0.0}
+	_command_grab = false
 
 
 # Tip of the white arm, in world space.

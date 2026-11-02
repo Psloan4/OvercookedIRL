@@ -11,8 +11,11 @@ Client -> server
   {"type":"reset"}                              start a fresh round
 
 Server -> client
-  {"type":"config", ...client_config()}         sent on hello and on connect
-  {"type":"state", ...Engine.tick() snapshot}
+  {"type":"config", ...client_config(),         sent on hello and on connect
+   "players":["p1","p2"],"bots":["p2"]}         bodies to spawn; which are bots
+  {"type":"state", ...Engine.tick() snapshot,   commands only when bots play,
+   "commands":{"p2":{"throttle":1.0,            only in replies to observe
+                     "turn":-0.5,"grab":false}}}
   {"type":"error","message":"..."}
 """
 
