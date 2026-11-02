@@ -155,14 +155,19 @@ func _on_config(config: Dictionary) -> void:
 
 	# Bodies start in the lanes above and below the table -- the board now owns
 	# the left lane, so spawning there would drop them on top of it.
-	_players.append(_spawn_player("p1",
-		Vector2(table.position.x + table.size.x * 0.25,
-			table.position.y - WALK_MARGIN * 0.5),
-		Color(0.2, 0.6, 1.0), body_radius))
-	_players.append(_spawn_player("p2",
-		Vector2(table.position.x + table.size.x * 0.75,
-			table.end.y + WALK_MARGIN * 0.5),
-		Color(1.0, 0.45, 0.2), body_radius))
+	# The server names which bodies play (`--players 1` is p1 alone); a server
+	# that doesn't say gets both.
+	var who: Array = config.get("players", ["p1", "p2"])
+	if "p1" in who:
+		_players.append(_spawn_player("p1",
+			Vector2(table.position.x + table.size.x * 0.25,
+				table.position.y - WALK_MARGIN * 0.5),
+			Color(0.2, 0.6, 1.0), body_radius))
+	if "p2" in who:
+		_players.append(_spawn_player("p2",
+			Vector2(table.position.x + table.size.x * 0.75,
+				table.end.y + WALK_MARGIN * 0.5),
+			Color(1.0, 0.45, 0.2), body_radius))
 
 	add_child(_hud)
 	add_child(_banner)

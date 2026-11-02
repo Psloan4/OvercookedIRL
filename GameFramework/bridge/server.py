@@ -6,6 +6,7 @@ disagree with the real game about what an item becomes.
 
 Run: python -m bridge.server [--port 8777] [--debug]
      python -m bridge.server --p1 alice --p2 bob --note "first session"
+     python -m bridge.server --players 1 --p1 alice   # solo: Godot spawns p1 only
 Each round is logged to GameFramework/logs/ (see bridge.logger).
 """
 
@@ -20,11 +21,14 @@ from bridge.logger import DEFAULT_DIR, GameLogger
 from bridge.protocol import HOST, PORT, LineReader, encode
 
 
+PLAYERS = ("p1", "p2")
+
+
 def new_seed(fixed=None):
     return fixed if fixed is not None else random.SystemRandom().randrange(2**31)
 
 
-def handle(conn, addr, debug=False, logger=None, seed=None):
+def handle(conn, addr, debug=False, logger=None, seed=None, players=PLAYERS):
     print(f"[bridge] client connected from {addr[0]}:{addr[1]}")
     engine = Engine(debug=debug)
     round_seed = new_seed(seed)
@@ -32,6 +36,9 @@ def handle(conn, addr, debug=False, logger=None, seed=None):
     reader = LineReader()
     ticks = 0
     game_seconds = client_config()["game_seconds"]
+    # Which bodies Godot spawns; the rules don't care how many there are.
+    config_msg = encode({"type": "config", **client_config(),
+                         "players": list(players)})
 
     def step(obs):
         snapshot = engine.tick(obs["now"], obs["tags"], obs["players"])
@@ -40,7 +47,7 @@ def handle(conn, addr, debug=False, logger=None, seed=None):
         return snapshot
 
     # Push the handshake immediately; a client that wants it again can ask.
-    conn.sendall(encode({"type": "config", **client_config()}))
+    conn.sendall(config_msg)
 
     with conn:
         while True:
@@ -50,7 +57,7 @@ def handle(conn, addr, debug=False, logger=None, seed=None):
             for msg in reader.feed(chunk):
                 kind = msg.get("type")
                 if kind == "hello":
-                    conn.sendall(encode({"type": "config", **client_config()}))
+                    conn.sendall(config_msg)
                 elif kind == "reset":
                     round_seed = new_seed(seed)
                     engine.start(round_seed)
@@ -84,7 +91,8 @@ def handle(conn, addr, debug=False, logger=None, seed=None):
           f"final score {engine.points}")
 
 
-def serve(host=HOST, port=PORT, debug=False, logger=None, seed=None):
+def serve(host=HOST, port=PORT, debug=False, logger=None, seed=None,
+          players=PLAYERS):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as srv:
         srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         srv.bind((host, port))
@@ -94,7 +102,8 @@ def serve(host=HOST, port=PORT, debug=False, logger=None, seed=None):
         while True:
             conn, addr = srv.accept()
             try:
-                handle(conn, addr, debug=debug, logger=logger, seed=seed)
+                handle(conn, addr, debug=debug, logger=logger, seed=seed,
+                       players=players)
             except ConnectionError as e:
                 print(f"[bridge] connection lost: {e}")
             finally:
@@ -110,15 +119,17 @@ if __name__ == "__main__":
     ap.add_argument("--seed", type=int, help="same seed every round")
     ap.add_argument("--log-dir", default=DEFAULT_DIR)
     ap.add_argument("--no-log", action="store_true")
+    ap.add_argument("--players", type=int, default=2, choices=(1, 2),
+                    help="bodies Godot spawns; 1 is p1 alone")
     ap.add_argument("--p1", default="anon", help="participant id for p1")
-    ap.add_argument("--p2", default="anon", help="participant id for p2")
+    ap.add_argument("--p2", default="anon", help="participant id for p2 (ignored solo)")
     ap.add_argument("--p1-kind", default="human", choices=("human", "bot"))
     ap.add_argument("--p2-kind", default="human", choices=("human", "bot"))
     ap.add_argument("--note", default="", help="free text saved in each log")
     a = ap.parse_args()
+    players = PLAYERS[:a.players]
+    who = {"p1": {"id": a.p1, "kind": a.p1_kind},
+           "p2": {"id": a.p2, "kind": a.p2_kind}}
     logger = None if a.no_log else GameLogger(
-        a.log_dir,
-        players={"p1": {"id": a.p1, "kind": a.p1_kind},
-                 "p2": {"id": a.p2, "kind": a.p2_kind}},
-        note=a.note)
-    serve(a.host, a.port, a.debug, logger, a.seed)
+        a.log_dir, players={p: who[p] for p in players}, note=a.note)
+    serve(a.host, a.port, a.debug, logger, a.seed, players)

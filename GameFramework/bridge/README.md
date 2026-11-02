@@ -16,6 +16,12 @@ Enter starts a round and restarts after time is up. P1 drives WASD + grab,
 P2 the arrow keys + its grab (see project.godot). The table is solid: walk
 around it and drop items across the edge onto a station.
 
+`--players 1` plays solo: the handshake tells Godot to spawn p1 only, and the
+logs list p1 alone. The rules are unchanged, so a lone body still has to stand
+at a gated station for its scan to finish.
+
+    python -m bridge.server --players 1 --p1 alice --note "solo"
+
 ## Game logs
 
 Every round is saved to `GameFramework/logs/<time>_seed<N>.jsonl.gz`, one
